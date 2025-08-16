@@ -3,17 +3,15 @@
 import React, { useState } from 'react'
 import { DashboardLayout } from '../../components/layout/dashboard-layout'
 import { AgentCard } from '../../components/agents/agent-card'
+import { AgentCreationWizard } from '../../components/agents/agent-creation-wizard'
 import { useWebSocket } from '../../hooks/use-websocket'
-import { Agent, mockAgents } from './mock-data'
+import { Agent, mockAgents, mockSystemPrompts, mockMCPServers } from './mock-data'
+import { AgentConfiguration } from '@team-dashboard/types'
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>(mockAgents)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [newAgent, setNewAgent] = useState({
-    name: '',
-    model: 'claude-3-sonnet' as const,
-    workspace: '/home/user/projects/'
-  })
+  const [showCreateWizard, setShowCreateWizard] = useState(false)
+  const [isCreatingAgent, setIsCreatingAgent] = useState(false)
 
   const websocket = useWebSocket()
 
@@ -41,27 +39,40 @@ export default function AgentsPage() {
     ))
   }
 
-  const handleCreateAgent = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newAgent.name.trim()) return
-
-    const agent: Agent = {
-      id: `agent-${Date.now()}`,
-      name: newAgent.name,
-      model: newAgent.model,
-      status: 'starting',
-      workspace: newAgent.workspace,
-      uptime: 0,
-      lastActivity: Date.now(),
-      cpu: 0,
-      memory: 0,
-    }
-
-    setAgents(prev => [...prev, agent])
-    websocket.createAgent(newAgent.name, newAgent.model, newAgent.workspace)
+  const handleCreateAgent = async (config: AgentConfiguration) => {
+    setIsCreatingAgent(true)
     
-    setNewAgent({ name: '', model: 'claude-3-sonnet', workspace: '/home/user/projects/' })
-    setShowCreateForm(false)
+    try {
+      // Convert wizard config to our Agent interface
+      const agent: Agent = {
+        id: config.id,
+        name: config.name,
+        model: config.model.includes('opus') ? 'claude-3-opus' : 'claude-3-sonnet',
+        status: 'starting',
+        workspace: config.workingDirectory || '/home/agent',
+        uptime: 0,
+        lastActivity: Date.now(),
+        cpu: 0,
+        memory: 0,
+      }
+
+      // Add to local state first for immediate UI feedback
+      setAgents(prev => [...prev, agent])
+      
+      // Create agent via websocket (this would be the real API call)
+      websocket.createAgent(config.name, config.model, config.workingDirectory || '/home/agent')
+      
+      // Close wizard
+      setShowCreateWizard(false)
+      
+      console.log('Agent created with configuration:', config)
+    } catch (error) {
+      console.error('Failed to create agent:', error)
+      // Remove from local state if creation failed
+      setAgents(prev => prev.filter(a => a.id !== config.id))
+    } finally {
+      setIsCreatingAgent(false)
+    }
   }
 
   return (
@@ -76,76 +87,22 @@ export default function AgentsPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowCreateForm(true)}
+            onClick={() => setShowCreateWizard(true)}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
             + Create Agent
           </button>
         </div>
 
-        {/* Create Agent Form */}
-        {showCreateForm && (
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Create New Agent</h3>
-            <form onSubmit={handleCreateAgent} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Agent Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newAgent.name}
-                    onChange={(e) => setNewAgent(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                    placeholder="e.g. Frontend Developer"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Model
-                  </label>
-                  <select
-                    value={newAgent.model}
-                    onChange={(e) => setNewAgent(prev => ({ ...prev, model: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                  >
-                    <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-                    <option value="claude-3-opus">Claude 3 Opus</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Workspace Path
-                </label>
-                <input
-                  type="text"
-                  value={newAgent.workspace}
-                  onChange={(e) => setNewAgent(prev => ({ ...prev, workspace: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                  placeholder="/home/user/projects/"
-                  required
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 border border-border rounded-md text-muted-foreground hover:bg-accent"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                >
-                  Create Agent
-                </button>
-              </div>
-            </form>
-          </div>
+        {/* Agent Creation Wizard */}
+        {showCreateWizard && (
+          <AgentCreationWizard
+            onCreateAgent={handleCreateAgent}
+            onCancel={() => setShowCreateWizard(false)}
+            systemPrompts={mockSystemPrompts}
+            mcpServers={mockMCPServers}
+            isCreating={isCreatingAgent}
+          />
         )}
 
         {/* Agent List */}
