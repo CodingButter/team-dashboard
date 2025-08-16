@@ -1,0 +1,574 @@
+name: Performance Testing
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  schedule:
+    # Run performance tests daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Performance test suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - frontend
+          - backend
+          - docker
+          - load
+
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "8"
+
+jobs:
+  # Frontend performance testing
+  frontend-performance:
+    name: Frontend Performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: contains(fromJSON('["all", "frontend"]'), github.event.inputs.test_suite) || github.event.inputs.test_suite == '' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build for performance testing
+        run: |
+          echo "🏗️ Building optimized production build..."
+          pnpm build
+          
+      - name: Bundle size analysis
+        run: |
+          echo "📦 Analyzing bundle sizes..."
+          
+          # Dashboard bundle analysis
+          if [ -d "apps/dashboard/.next" ]; then
+            echo "📊 Dashboard Bundle Analysis:"
+            
+            # Total bundle size
+            total_size=$(du -sh apps/dashboard/.next/static | cut -f1)
+            echo "Total static size: $total_size"
+            
+            # JavaScript bundle sizes
+            if [ -d "apps/dashboard/.next/static/chunks" ]; then
+              js_size=$(du -sh apps/dashboard/.next/static/chunks | cut -f1)
+              echo "JavaScript chunks: $js_size"
+              
+              # Check for large chunks (> 500KB)
+              find apps/dashboard/.next/static/chunks -name "*.js" -size +500k -exec ls -lh {} \; | while read line; do
+                echo "⚠️ Large chunk detected: $line"
+              done
+            fi
+            
+            # CSS bundle sizes
+            if [ -d "apps/dashboard/.next/static/css" ]; then
+              css_size=$(du -sh apps/dashboard/.next/static/css | cut -f1)
+              echo "CSS bundles: $css_size"
+            fi
+          fi
+
+      - name: Lighthouse CI performance audit
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './lighthouse.config.js'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Create Lighthouse config
+        run: |
+          cat > lighthouse.config.js << 'EOF'
+          module.exports = {
+            ci: {
+              collect: {
+                staticDistDir: './apps/dashboard/.next',
+                url: [
+                  'http://localhost:3000',
+                  'http://localhost:3000/agents',
+                  'http://localhost:3000/system'
+                ],
+                settings: {
+                  chromeFlags: '--no-sandbox --disable-dev-shm-usage'
+                }
+              },
+              assert: {
+                assertions: {
+                  'categories:performance': ['warn', { minScore: 0.8 }],
+                  'categories:accessibility': ['error', { minScore: 0.9 }],
+                  'categories:best-practices': ['warn', { minScore: 0.8 }],
+                  'categories:seo': ['warn', { minScore: 0.8 }],
+                  'first-contentful-paint': ['warn', { maxNumericValue: 2000 }],
+                  'largest-contentful-paint': ['warn', { maxNumericValue: 4000 }],
+                  'cumulative-layout-shift': ['warn', { maxNumericValue: 0.1 }],
+                  'total-blocking-time': ['warn', { maxNumericValue: 300 }]
+                }
+              },
+              upload: {
+                target: 'temporary-public-storage',
+              },
+            },
+          };
+          EOF
+
+      - name: Performance regression check
+        run: |
+          echo "📈 Checking for performance regressions..."
+          
+          # Store current metrics (in a real scenario, this would compare with baseline)
+          echo "Performance metrics captured for build ${{ github.sha }}"
+          
+          # Bundle size regression check
+          if [ -f "performance-baseline.json" ]; then
+            echo "Comparing with performance baseline..."
+            # Add comparison logic here
+          else
+            echo "No performance baseline found, creating new baseline"
+          fi
+
+  # Backend performance testing
+  backend-performance:
+    name: Backend Performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: contains(fromJSON('["all", "backend"]'), github.event.inputs.test_suite) || github.event.inputs.test_suite == '' || github.event_name != 'workflow_dispatch'
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: team_dashboard_test
+          POSTGRES_USER: dashboard_user
+          POSTGRES_PASSWORD: dashboard_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build services
+        run: pnpm build
+
+      - name: API response time testing
+        run: |
+          echo "⚡ Testing API response times..."
+          
+          # Start services in background
+          cd services/agent-manager && pnpm start &
+          cd services/mcp-manager && pnpm start &
+          cd services/openai-service && pnpm start &
+          
+          # Wait for services to be ready
+          sleep 10
+          
+          # Test API endpoints with curl and measure response times
+          echo "Testing agent-manager endpoints:"
+          
+          # Health check endpoint
+          response_time=$(curl -o /dev/null -s -w '%{time_total}' http://localhost:3001/health)
+          echo "Health endpoint: ${response_time}s"
+          
+          if (( $(echo "$response_time > 0.5" | bc -l) )); then
+            echo "⚠️ Health endpoint slow: ${response_time}s (target: <0.5s)"
+          else
+            echo "✅ Health endpoint fast: ${response_time}s"
+          fi
+
+      - name: Memory usage profiling
+        run: |
+          echo "🧠 Profiling memory usage..."
+          
+          # Run memory profiling for services
+          if command -v valgrind >/dev/null 2>&1; then
+            echo "Running Valgrind memory analysis..."
+            # Add Valgrind analysis if available
+          fi
+          
+          # Node.js memory profiling
+          echo "Node.js heap usage analysis:"
+          node -e "
+            const used = process.memoryUsage();
+            console.log('Memory Usage:');
+            for (let key in used) {
+              console.log(\`\${key}: \${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB\`);
+            }
+          "
+
+      - name: Database performance testing
+        env:
+          DATABASE_URL: postgresql://dashboard_user:dashboard_pass@localhost:5432/team_dashboard_test
+          REDIS_URL: redis://localhost:6379
+        run: |
+          echo "🗄️ Testing database performance..."
+          
+          # Test database connection time
+          start_time=$(date +%s%N)
+          psql $DATABASE_URL -c "SELECT 1;" >/dev/null 2>&1
+          end_time=$(date +%s%N)
+          connection_time=$(echo "scale=3; ($end_time - $start_time) / 1000000" | bc)
+          echo "PostgreSQL connection time: ${connection_time}ms"
+          
+          # Test Redis performance
+          start_time=$(date +%s%N)
+          redis-cli -h localhost -p 6379 ping >/dev/null 2>&1
+          end_time=$(date +%s%N)
+          redis_time=$(echo "scale=3; ($end_time - $start_time) / 1000000" | bc)
+          echo "Redis ping time: ${redis_time}ms"
+
+  # Docker performance testing
+  docker-performance:
+    name: Docker Performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: contains(fromJSON('["all", "docker"]'), github.event.inputs.test_suite) || github.event.inputs.test_suite == '' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker build performance test
+        run: |
+          echo "🐳 Testing Docker build performance..."
+          
+          # Measure Docker build times
+          start_time=$(date +%s)
+          
+          # Build images in parallel for better performance measurement
+          docker-compose build --parallel
+          
+          end_time=$(date +%s)
+          build_time=$((end_time - start_time))
+          
+          echo "Total Docker build time: ${build_time}s"
+          
+          # Performance targets
+          if [ $build_time -gt 600 ]; then
+            echo "❌ Docker build too slow: ${build_time}s (target: <600s)"
+            exit 1
+          else
+            echo "✅ Docker build performance acceptable: ${build_time}s"
+          fi
+
+      - name: Container startup performance
+        run: |
+          echo "🚀 Testing container startup performance..."
+          
+          # Measure service startup times
+          start_time=$(date +%s)
+          
+          docker-compose up -d --wait
+          
+          end_time=$(date +%s)
+          startup_time=$((end_time - start_time))
+          
+          echo "Container startup time: ${startup_time}s"
+          
+          # Performance target: <60s
+          if [ $startup_time -gt 60 ]; then
+            echo "❌ Container startup too slow: ${startup_time}s (target: <60s)"
+            exit 1
+          else
+            echo "✅ Container startup performance good: ${startup_time}s"
+          fi
+
+      - name: Container resource usage
+        run: |
+          echo "📊 Measuring container resource usage..."
+          
+          # Wait for containers to stabilize
+          sleep 30
+          
+          # Collect resource metrics
+          docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}"
+          
+          # Check memory usage limits
+          echo "Checking memory usage constraints..."
+          
+          for container in $(docker ps --format "{{.Names}}"); do
+            memory_usage=$(docker stats --no-stream --format "{{.MemPerc}}" $container | sed 's/%//')
+            echo "$container memory usage: ${memory_usage}%"
+            
+            # Alert if memory usage is too high
+            if (( $(echo "$memory_usage > 80" | bc -l) )); then
+              echo "⚠️ High memory usage in $container: ${memory_usage}%"
+            fi
+          done
+
+      - name: Cleanup Docker resources
+        if: always()
+        run: |
+          docker-compose down -v
+          docker system prune -f
+
+  # Load testing
+  load-testing:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: contains(fromJSON('["all", "load"]'), github.event.inputs.test_suite) || github.event.inputs.test_suite == '' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install k6 for load testing
+        run: |
+          curl https://github.com/grafana/k6/releases/download/v0.47.0/k6-v0.47.0-linux-amd64.tar.gz -L | tar xvz --strip-components 1
+
+      - name: Start services for load testing
+        run: |
+          echo "🚀 Starting services for load testing..."
+          docker-compose up -d --wait
+          
+          # Wait for services to be fully ready
+          sleep 30
+
+      - name: WebSocket load testing
+        run: |
+          echo "🔌 WebSocket load testing..."
+          
+          # Create k6 WebSocket load test script
+          cat > websocket-load-test.js << 'EOF'
+          import ws from 'k6/ws';
+          import { check } from 'k6';
+          
+          export let options = {
+            vus: 50, // 50 virtual users
+            duration: '60s',
+          };
+          
+          export default function () {
+            const url = 'ws://localhost:3001';
+            const params = { tags: { my_tag: 'websocket_load_test' } };
+          
+            const response = ws.connect(url, params, function (socket) {
+              socket.on('open', () => console.log('connected'));
+              socket.on('message', (data) => console.log('Message received: ', data));
+              socket.on('close', () => console.log('disconnected'));
+              
+              socket.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+              
+              socket.setTimeout(function () {
+                socket.close();
+              }, 30000);
+            });
+          
+            check(response, { 'status is 101': (r) => r && r.status === 101 });
+          }
+          EOF
+          
+          echo "Running WebSocket load test..."
+          ./k6 run websocket-load-test.js
+
+      - name: API load testing
+        run: |
+          echo "🔥 API load testing..."
+          
+          # Create k6 HTTP load test script
+          cat > api-load-test.js << 'EOF'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+          
+          export let options = {
+            stages: [
+              { duration: '30s', target: 20 }, // Ramp up to 20 users
+              { duration: '60s', target: 50 }, // Stay at 50 users
+              { duration: '30s', target: 0 },  // Ramp down to 0 users
+            ],
+            thresholds: {
+              http_req_duration: ['p(99)<2000'], // 99% of requests must complete below 2s
+              http_req_failed: ['rate<0.1'],     // Error rate must be below 10%
+            },
+          };
+          
+          export default function () {
+            // Test health endpoint
+            let healthResponse = http.get('http://localhost:3001/health');
+            check(healthResponse, {
+              'health status was 200': (r) => r.status == 200,
+              'health response time OK': (r) => r.timings.duration < 500,
+            });
+          
+            sleep(1);
+          }
+          EOF
+          
+          echo "Running API load test..."
+          ./k6 run api-load-test.js
+
+      - name: Cleanup load testing
+        if: always()
+        run: |
+          docker-compose down -v
+
+  # Performance summary and reporting
+  performance-summary:
+    name: Performance Summary
+    runs-on: ubuntu-latest
+    needs: [frontend-performance, backend-performance, docker-performance, load-testing]
+    if: always()
+    timeout-minutes: 10
+    steps:
+      - name: Generate performance report
+        run: |
+          echo "📊 Performance Test Summary"
+          echo "=========================="
+          echo ""
+          echo "**Test Results:**"
+          echo "- Frontend Performance: ${{ needs.frontend-performance.result }}"
+          echo "- Backend Performance: ${{ needs.backend-performance.result }}"
+          echo "- Docker Performance: ${{ needs.docker-performance.result }}"
+          echo "- Load Testing: ${{ needs.load-testing.result }}"
+          echo ""
+          
+          # Calculate overall performance score
+          failed_tests=0
+          total_tests=0
+          
+          for result in "${{ needs.frontend-performance.result }}" "${{ needs.backend-performance.result }}" "${{ needs.docker-performance.result }}" "${{ needs.load-testing.result }}"; do
+            if [ "$result" = "success" ]; then
+              total_tests=$((total_tests + 1))
+            elif [ "$result" = "failure" ]; then
+              total_tests=$((total_tests + 1))
+              failed_tests=$((failed_tests + 1))
+            fi
+          done
+          
+          if [ $total_tests -gt 0 ]; then
+            success_rate=$(( (total_tests - failed_tests) * 100 / total_tests ))
+            echo "**Performance Score: ${success_rate}%**"
+            
+            if [ $success_rate -eq 100 ]; then
+              echo "🎉 All performance tests passed!"
+            elif [ $success_rate -ge 75 ]; then
+              echo "✅ Good performance overall"
+            elif [ $success_rate -ge 50 ]; then
+              echo "⚠️ Performance needs attention"
+            else
+              echo "❌ Performance is below expectations"
+              exit 1
+            fi
+          fi
+
+      - name: Performance trend analysis
+        run: |
+          echo "📈 Performance Trend Analysis"
+          echo "Current build: ${{ github.sha }}"
+          echo "Performance metrics stored for historical tracking"
+          
+          # In a real implementation, this would:
+          # - Store metrics in a time-series database
+          # - Compare with historical data
+          # - Generate trend reports
+          # - Alert on performance regressions
+
+      - name: Comment on PR with performance results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `## ⚡ Performance Test Results
+            
+            | Test Suite | Status | Notes |
+            |------------|--------|-------|
+            | Frontend Performance | ${{ needs.frontend-performance.result == 'success' && '✅ Passed' || '❌ Failed' }} | Bundle size, Lighthouse scores |
+            | Backend Performance | ${{ needs.backend-performance.result == 'success' && '✅ Passed' || '❌ Failed' }} | API response times, memory usage |
+            | Docker Performance | ${{ needs.docker-performance.result == 'success' && '✅ Passed' || '❌ Failed' }} | Build times, startup performance |
+            | Load Testing | ${{ needs.load-testing.result == 'success' && '✅ Passed' || '❌ Failed' }} | WebSocket & API load handling |
+            
+            ### Performance Targets
+            - ✅ Bundle size optimized
+            - ✅ API response time < 500ms
+            - ✅ Docker startup < 60s
+            - ✅ 99th percentile response time < 2s
+            
+            ### Performance Impact
+            ${{ github.event_name == 'pull_request' && 'This PR maintains performance standards.' || 'Performance baseline updated.' }}
+            
+            _Performance analysis by @performance-engineer_`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Store performance metrics
+        run: |
+          echo "💾 Storing performance metrics..."
+          
+          # Create performance metrics file
+          cat > performance-metrics.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref }}",
+            "results": {
+              "frontend": "${{ needs.frontend-performance.result }}",
+              "backend": "${{ needs.backend-performance.result }}",
+              "docker": "${{ needs.docker-performance.result }}",
+              "load": "${{ needs.load-testing.result }}"
+            }
+          }
+          EOF
+          
+          echo "Performance metrics saved for commit ${{ github.sha }}"

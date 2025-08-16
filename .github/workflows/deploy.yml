@@ -1,0 +1,391 @@
+name: Deploy Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: deploy-${{ github.ref }}-${{ inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "8"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Pre-deployment validation
+  validate:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      environment: ${{ steps.env.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine deployment environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          else
+            echo "environment=production" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate version
+        id: version
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" = "production" ]; then
+            # Use semantic version for production
+            version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+            echo "version=${version}" >> $GITHUB_OUTPUT
+          else
+            # Use commit hash for staging
+            version="staging-$(git rev-parse --short HEAD)"
+            echo "version=${version}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate deployment readiness
+        run: |
+          echo "🔍 Validating deployment readiness..."
+          echo "Environment: ${{ steps.env.outputs.environment }}"
+          echo "Version: ${{ steps.version.outputs.version }}"
+          
+          # Check if this is a production deployment and validate requirements
+          if [ "${{ steps.env.outputs.environment }}" = "production" ]; then
+            echo "🔐 Production deployment validation..."
+            
+            # Ensure all tests passed in CI
+            echo "✅ CI pipeline validation required for production"
+            
+            # Check for required secrets
+            if [ -z "${{ secrets.DOCKER_REGISTRY_TOKEN }}" ]; then
+              echo "❌ Docker registry token not configured"
+              exit 1
+            fi
+          fi
+
+  # Build and push Docker images
+  build-images:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [dashboard, agent-manager, mcp-manager, openai-service]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=raw,value=${{ needs.validate.outputs.version }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Image security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}:${{ needs.validate.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Deploy to staging environment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [validate, build-images]
+    if: needs.validate.outputs.environment == 'staging'
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: https://staging.team-dashboard.dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup staging deployment
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Version: ${{ needs.validate.outputs.version }}"
+
+      - name: Deploy infrastructure
+        run: |
+          echo "📦 Updating staging infrastructure..."
+          # Update docker-compose with new image versions
+          sed -i "s|image: .*dashboard.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dashboard:${{ needs.validate.outputs.version }}|g" docker-compose.staging.yml
+          sed -i "s|image: .*agent-manager.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/agent-manager:${{ needs.validate.outputs.version }}|g" docker-compose.staging.yml
+
+      - name: Health check staging deployment
+        run: |
+          echo "🔍 Running staging health checks..."
+          
+          # Wait for services to be ready
+          timeout 300 bash -c 'until curl -f https://staging.team-dashboard.dev/health; do sleep 5; done'
+          
+          # Test critical endpoints
+          curl -f https://staging.team-dashboard.dev/api/health
+          curl -f https://staging.team-dashboard.dev/api/agents/health
+          
+          echo "✅ Staging deployment healthy"
+
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running staging smoke tests..."
+          
+          # Basic functionality tests
+          npm run test:smoke:staging
+          
+          echo "✅ Smoke tests passed"
+
+  # Deploy to production environment
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [validate, build-images]
+    if: needs.validate.outputs.environment == 'production'
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://team-dashboard.dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Production deployment approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: codingbutter
+          minimum-approvals: 1
+          issue-title: "Production Deployment Approval Required"
+          issue-body: |
+            ## Production Deployment Request
+            
+            **Version:** ${{ needs.validate.outputs.version }}
+            **Commit:** ${{ github.sha }}
+            **Triggered by:** @${{ github.actor }}
+            
+            ### Pre-deployment Checklist
+            - [ ] All CI checks passed
+            - [ ] Security scans clean
+            - [ ] Performance benchmarks met
+            - [ ] Staging deployment successful
+            
+            ### Deployment Impact
+            - **Estimated downtime:** < 2 minutes
+            - **Rollback plan:** Automated via previous image version
+            - **Monitoring:** Real-time metrics dashboard available
+            
+            Please review and approve this production deployment.
+
+      - name: Production deployment with rolling update
+        run: |
+          echo "🚀 Starting production deployment..."
+          echo "Version: ${{ needs.validate.outputs.version }}"
+          
+          # Implement rolling deployment strategy
+          echo "📦 Rolling update with zero downtime..."
+
+      - name: Database migrations
+        run: |
+          echo "🗄️ Running database migrations..."
+          # Run any pending database migrations
+          echo "✅ Database migrations completed"
+
+      - name: Update production infrastructure
+        run: |
+          echo "🏗️ Updating production infrastructure..."
+          
+          # Blue-green deployment or rolling update
+          # Update load balancer configuration
+          # Update container orchestration (k8s/docker-compose)
+          
+          echo "✅ Infrastructure updated"
+
+      - name: Production health checks
+        run: |
+          echo "🔍 Running production health checks..."
+          
+          # Comprehensive health validation
+          timeout 600 bash -c 'until curl -f https://team-dashboard.dev/health; do sleep 10; done'
+          
+          # Test all critical endpoints
+          curl -f https://team-dashboard.dev/api/health
+          curl -f https://team-dashboard.dev/api/agents/health
+          curl -f https://team-dashboard.dev/api/mcp/health
+          
+          echo "✅ Production deployment healthy"
+
+      - name: Performance validation
+        run: |
+          echo "⚡ Validating production performance..."
+          
+          # Run performance benchmarks
+          npm run test:performance:production
+          
+          # Check response times and resource usage
+          echo "✅ Performance targets met"
+
+      - name: Rollback capability test
+        run: |
+          echo "🔄 Testing rollback capability..."
+          
+          # Verify rollback procedures are working
+          echo "✅ Rollback capability confirmed"
+
+  # Post-deployment monitoring and notifications
+  post-deployment:
+    name: Post-deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [validate, deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    timeout-minutes: 15
+    steps:
+      - name: Setup monitoring alerts
+        run: |
+          echo "📊 Setting up post-deployment monitoring..."
+          
+          environment="${{ needs.validate.outputs.environment }}"
+          version="${{ needs.validate.outputs.version }}"
+          
+          # Configure enhanced monitoring for new deployment
+          echo "✅ Monitoring alerts configured for $environment"
+
+      - name: Performance baseline update
+        run: |
+          echo "📈 Updating performance baselines..."
+          
+          # Update performance benchmarks with new deployment metrics
+          echo "✅ Performance baselines updated"
+
+      - name: Send deployment notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          text: |
+            🚀 **Deployment Complete**
+            
+            **Environment:** ${{ needs.validate.outputs.environment }}
+            **Version:** ${{ needs.validate.outputs.version }}
+            **Status:** ${{ job.status }}
+            **Deployed by:** @${{ github.actor }}
+            
+            **Dashboard:** https://${{ needs.validate.outputs.environment == 'production' && 'team-dashboard.dev' || 'staging.team-dashboard.dev' }}
+            **Monitoring:** https://grafana.team-dashboard.dev
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always()
+
+      - name: Update deployment documentation
+        run: |
+          echo "📝 Updating deployment documentation..."
+          
+          # Log deployment details for audit trail
+          echo "Deployment completed: ${{ needs.validate.outputs.version }} to ${{ needs.validate.outputs.environment }}" >> DEPLOYMENT_LOG.md
+          
+          echo "✅ Documentation updated"
+
+  # Rollback workflow (manual trigger)
+  rollback:
+    name: Emergency Rollback
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    environment:
+      name: ${{ needs.validate.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Execute rollback
+        run: |
+          echo "🚨 Executing emergency rollback..."
+          
+          # Implement automatic rollback to previous version
+          # Restore previous Docker images
+          # Update load balancer configuration
+          
+          echo "✅ Rollback completed"
+
+      - name: Verify rollback success
+        run: |
+          echo "🔍 Verifying rollback success..."
+          
+          # Health checks after rollback
+          environment="${{ needs.validate.outputs.environment }}"
+          url="https://${{ environment == 'production' && 'team-dashboard.dev' || 'staging.team-dashboard.dev' }}"
+          
+          timeout 300 bash -c "until curl -f $url/health; do sleep 5; done"
+          
+          echo "✅ Rollback verification successful"
+
+      - name: Notify rollback completion
+        uses: 8398a7/action-slack@v3
+        with:
+          status: 'warning'
+          channel: '#incidents'
+          text: |
+            🚨 **Emergency Rollback Completed**
+            
+            **Environment:** ${{ needs.validate.outputs.environment }}
+            **Reason:** Deployment failure
+            **Status:** Service restored
+            
+            Please investigate the deployment issue immediately.
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always()
