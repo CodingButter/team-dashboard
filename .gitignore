@@ -84,4 +84,4 @@ temp/
 # Test artifacts
 test-results/
 playwright-report/
-playwright/.cache/
+playwright/.cache/.env.local
