@@ -62,7 +62,7 @@ export class HttpTransport {
     }
     
     // Reject all pending requests
-    for (const [id, { reject, timeout }] of this.pendingRequests) {
+    for (const [_id, { reject, timeout }] of this.pendingRequests) {
       clearTimeout(timeout);
       reject(new Error('Connection closed'));
     }
@@ -72,7 +72,7 @@ export class HttpTransport {
   private async setupSSE(): Promise<void> {
     // Note: This is a simplified implementation
     // Real HTTP+SSE transport would need proper SSE handling
-    const sseUrl = `${this.config.baseUrl}/sse`;
+    // const _sseUrl = `${this.config.baseUrl}/sse`; // Placeholder for SSE implementation
     
     return new Promise((resolve, reject) => {
       try {
@@ -141,27 +141,36 @@ export class HttpTransport {
       this.pendingRequests.set(id, { resolve, reject, timeout });
 
       try {
-        const response = await fetch(`${this.config.baseUrl}/mcp`, {
-          method: 'POST',
-          headers: this.getHeaders(),
-          body: JSON.stringify(message),
-          timeout: this.options.timeout || 30000
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const result = await response.json() as McpMessage;
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), this.options.timeout || 30000);
         
-        // Remove from pending requests
-        this.pendingRequests.delete(id);
-        clearTimeout(timeout);
+        try {
+          const response = await fetch(`${this.config.baseUrl}/mcp`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(message),
+            signal: abortController.signal
+          });
+          clearTimeout(timeoutId);
 
-        if (result.error) {
-          reject(new Error(result.error.message || 'Unknown error'));
-        } else {
-          resolve(result.result);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json() as McpMessage;
+          
+          // Remove from pending requests
+          this.pendingRequests.delete(id);
+          clearTimeout(timeout);
+
+          if (result.error) {
+            reject(new Error(result.error.message || 'Unknown error'));
+          } else {
+            resolve(result.result);
+          }
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw fetchError;
         }
       } catch (error) {
         this.pendingRequests.delete(id);
@@ -179,11 +188,20 @@ export class HttpTransport {
     const startTime = Date.now();
     
     try {
-      await fetch(`${this.config.baseUrl}/health`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-        timeout: 5000
-      });
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 5000);
+      
+      try {
+        await fetch(`${this.config.baseUrl}/health`, {
+          method: 'GET',
+          headers: this.getHeaders(),
+          signal: abortController.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
       
       return {
         healthy: true,
