@@ -1,383 +1,423 @@
-# Agentic Coding Agent Dashboard - Project Scope
+# Team Management Dashboard - Project Scope
 
 ## Executive Summary
 
-A revolutionary web-based platform that replicates and enhances Claude Code's functionality, providing autonomous coding agents with full codebase awareness, multi-model support, and extensive tool connectivity through MCP (Model Context Protocol) servers. This system delivers 30-40% cost savings compared to Claude Code while maintaining near-parity performance and offering superior customization and control.
+A comprehensive web-based dashboard for managing Claude Code instances with sequential workflow coordination, providing real-time system monitoring and enhanced team coordination capabilities. This system will revolutionize how we manage and coordinate our AI agent team.
 
 ## Project Vision
 
-Create a comprehensive agentic coding platform that enables:
-- **Autonomous Coding Agents**: Full-featured coding assistants with codebase awareness
-- **Multi-Model Support**: OpenAI GPT-4o, Claude 3.5 Sonnet, and other leading models
-- **MCP Server Integration**: Unlimited tool connectivity and custom capabilities
-- **Cost Optimization**: Significant savings through direct API integration
-- **Enterprise Control**: Self-hosted deployment with full customization
+Create a centralized command center that enables:
+- Real-time management of Claude Code agent instances
+- Bidirectional communication with each agent through interactive frames
+- System resource monitoring and optimization
+- Sequential workflow coordination and task handoffs
+- Enhanced team coordination capabilities
 
-## Business Case & Cost Analysis
+## Technical Architecture
 
-### Current Market Position
-- **Claude Code**: $6-12/developer/day, $10-15/PR
-- **GitHub Copilot**: Limited capabilities, no autonomous features
-- **Cursor**: IDE-only, no multi-agent coordination
+### System Architecture Overview
 
-### Our Solution Benefits
-- **30-40% Cost Reduction**: Direct API pricing vs Claude Code markup
-- **Enhanced Flexibility**: Custom models, tools, and workflows
-- **Full Control**: Self-hosted, no vendor lock-in
-- **Superior Features**: Multi-agent coordination, custom MCP servers
-- **Enterprise Ready**: Advanced security, audit trails, compliance
-
-### Cost Breakdown (Per Developer/Day)
-- **OpenAI GPT-4o**: $4-8 (vs Claude Code $6-12)
-- **Claude 3.5 Sonnet**: $3-6 via API (vs $6-12 via Claude Code)
-- **Infrastructure**: $0.50-1.00/developer/day
-- **Total Savings**: 30-40% with enhanced capabilities
-
-## Core Architecture
-
-### Frontend-Driven LLM Integration
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Agentic Dashboard Frontend               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │  Agent   │  │  Model   │  │   MCP    │  │  System  │    │
-│  │Terminal  │  │ Config   │  │ Servers  │  │ Monitor  │    │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘    │
-└───────┼─────────────┼─────────────┼─────────────┼─────────┘
-        │             │             │             │
-    WebSocket     REST API      MCP Protocol   Metrics API
-        │             │             │             │
-┌───────┼─────────────┼─────────────┼─────────────┼─────────┐
-│       │         Backend Services Layer           │       │
-│  ┌────▼─────┐  ┌────▼─────┐  ┌────▼─────┐  ┌────▼─────┐  │
-│  │  Agent   │  │   LLM    │  │   MCP    │  │  System  │  │
-│  │ Manager  │  │ Gateway  │  │ Manager  │  │ Monitor  │  │
-│  └──────────┘  └────┬─────┘  └────┬─────┘  └──────────┘  │
-└─────────────────────┼─────────────┼───────────────────────┘
-                      │             │
-               ┌──────▼─────┐ ┌─────▼─────┐
-               │   OpenAI   │ │   MCP     │
-               │    API     │ │ Servers   │
-               └────────────┘ └───────────┘
+│                    Frontend Dashboard                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │  Agent   │  │  System  │  │ Workflow │  │
+│  │  Frames  │  │ Metrics  │  │  Manager │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
+└───────┼─────────────┼─────────────┼─────────┘
+        │             │             │
+    WebSocket     REST API      REST API
+        │             │             │
+┌───────┼─────────────┼─────────────┼─────────┐
+│       │         Backend Services Layer       │
+│  ┌────▼─────┐  ┌────▼─────┐  ┌──▼──────┐    │
+│  │  Agent   │  │  System  │  │ GitHub  │    │
+│  │  Manager │  │  Monitor │  │   API   │    │
+│  └────┬─────┘  └────┬─────┘  └─────────┘    │
+└───────┼─────────────┼───────────────────────┘
+        │             │
+    Process       System API
+    Spawning      Monitoring
 ```
 
-### Technology Stack
+### Technology Stack Recommendations
 
 #### Frontend Stack
-**Next.js 14 with Enhanced Agent Capabilities**
-- **Framework**: Next.js 14 (App Router) with TypeScript 5.x
-- **Styling**: Tailwind CSS v4 + shadcn/ui components
-- **State Management**: Zustand + TanStack Query for API state
-- **Real-time**: WebSockets for agent communication
-- **Terminal**: xterm.js with advanced features
-- **Code Editor**: Monaco Editor for file editing
-- **Visualization**: D3.js for system monitoring
+**Recommended: Next.js 14 with TypeScript**
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript 5.x
+- **Styling**: Tailwind CSS v4 + shadcn/ui
+- **State Management**: Zustand + React Query
+- **WebSocket Client**: Socket.io-client
+- **Charts**: Recharts for metrics visualization
+- **Terminal Emulation**: xterm.js for agent interfaces
 
-#### Backend Services
-**Microservices Architecture**
-- **Agent Manager**: Node.js/Fastify for agent lifecycle
-- **LLM Gateway**: Python/FastAPI for model routing
-- **MCP Manager**: Node.js for MCP server orchestration
-- **System Monitor**: Python/FastAPI with psutil
-- **File Operations**: Secure file system interface
-- **Git Integration**: Native git command execution
+**Rationale**:
+- Team familiarity from DrawDay project
+- Excellent TypeScript support
+- Built-in API routes for backend
+- SSR capabilities for dashboard performance
+- Strong ecosystem for real-time applications
+
+#### Backend Stack
+**Recommended: Hybrid Node.js + Python Architecture**
+
+**Node.js Services (TypeScript)**:
+- **Framework**: Fastify (performance-optimized)
+- **WebSocket Server**: Socket.io or native ws
+- **Process Management**: node-pty for terminal sessions
+- **API Layer**: tRPC for type-safe APIs
+- **Queue Management**: BullMQ for job processing
+
+**Python Services**:
+- **System Monitoring**: psutil + prometheus_client
+- **Neo4j Interface**: py2neo or neo4j-driver
+- **API Framework**: FastAPI for metrics endpoints
+- **Process Spawning**: subprocess with asyncio
+
+**Rationale**:
+- Node.js excels at WebSocket handling and real-time communication
+- Python superior for system monitoring and Neo4j integration
+- Microservices architecture allows best tool for each job
+
+#### Infrastructure & DevOps
+- **Containerization**: Docker + Docker Compose
+- **Process Manager**: PM2 for Node.js services
+- **Monitoring**: Prometheus + Grafana
+- **Database**: Neo4j 5.x (existing semantic memory)
+- **Message Queue**: Redis for pub/sub
+- **Reverse Proxy**: Nginx or Caddy
+
+### Core Features & Components
+
+#### 1. Agent Management System
+- **Instance Spawning**: Programmatic Claude Code instance creation
+- **Lifecycle Management**: Start, stop, restart, health checks
+- **Resource Allocation**: CPU/memory limits per instance
+- **Session Persistence**: Save and restore agent states
+- **Command Routing**: Direct commands to specific agents
+- **Output Streaming**: Real-time stdout/stderr capture
+
+#### 2. Interactive Agent Frames
+- **Terminal Emulation**: Full terminal interface per agent
+- **Command History**: Per-agent command persistence
+- **Auto-completion**: Context-aware suggestions
+- **Syntax Highlighting**: Language-specific coloring
+- **File Transfer**: Drag-and-drop file sharing
+- **Keyboard Shortcuts**: 
+  - ESC: Emergency stop
+  - Ctrl+C: Interrupt current operation
+  - Ctrl+L: Clear terminal
+  - Ctrl+Tab: Switch between agents
+
+#### 3. System Monitoring Dashboard
+- **Real-time Metrics**:
+  - CPU usage (per core and aggregate)
+  - Memory consumption (RAM + swap)
+  - GPU utilization (if available)
+  - Network I/O
+  - Disk usage and I/O
+  - Process count and load average
+- **Per-Agent Metrics**:
+  - Resource consumption per instance
+  - API call counts
+  - Token usage tracking
+  - Response times
+- **Alerting System**:
+  - Resource threshold alerts
+  - Agent crash notifications
+  - Performance degradation warnings
+
+#### 4. Neo4j Memory Visualization
+- **Interactive Graph Explorer**:
+  - 3D/2D switchable view
+  - Zoom, pan, rotate controls
+  - Node clustering by type
+  - Edge filtering by relationship
+- **Search Capabilities**:
+  - Full-text search across entities
+  - Semantic similarity search
+  - Query builder interface
+- **Real-time Updates**:
+  - Live graph updates as agents modify
+  - Change highlighting
+  - Version history tracking
+
+#### 5. Workflow Enhancement Tools
+- **GitHub Integration**:
+  - Issue assignment tracking
+  - PR status monitoring
+  - Commit activity feed
+  - Build status indicators
+- **Task Coordination**:
+  - Task queue visualization
+  - Agent workload balancing
+  - Dependency tracking
+  - Deadline monitoring
+- **Communication Hub**:
+  - Inter-agent messaging
+  - Broadcast commands
+  - Shared clipboard
+  - Knowledge sharing
+
+### Security Considerations
+
+#### Authentication & Authorization
+- **Multi-factor Authentication**: TOTP-based 2FA
+- **Role-based Access Control**: Admin, operator, viewer roles
+- **Session Management**: JWT with refresh tokens
+- **API Key Management**: Per-service API keys
+
+#### Data Security
+- **Encryption**: TLS 1.3 for all communications
+- **Secrets Management**: Environment variables + vault
+- **Input Sanitization**: Command injection prevention
+- **Rate Limiting**: Per-endpoint and per-user limits
+
+#### Agent Isolation
+- **Container Isolation**: Each agent in separate container
+- **Resource Limits**: cgroups for resource control
+- **Network Policies**: Restricted inter-agent communication
+- **Audit Logging**: All commands and responses logged
+
+### Development Phases
+
+#### Phase 1: Foundation (Weeks 1-2)
+**Goal**: Basic dashboard with agent frame infrastructure
+
+**Deliverables**:
+- Project setup and tooling configuration
+- Basic Next.js dashboard scaffold
+- WebSocket server implementation
+- Single agent frame prototype
+- Basic command execution
+
+**Team Assignments**:
+- monorepo-architecture-specialist: Project structure setup
+- frontend-expert: Dashboard UI framework
+- Lead developer: WebSocket architecture
+
+#### Phase 2: Agent Communication (Weeks 3-4)
+**Goal**: Full bidirectional communication with Claude instances
+
+**Deliverables**:
+- Multi-agent frame management
+- Process spawning and management
+- Output streaming and capture
+- Command routing system
+- Session persistence
+
+**Team Assignments**:
+- Frontend expert: Terminal emulation UI
+- Performance specialist: Process optimization
+- Lead developer: Backend services
+
+#### Phase 3: System Monitoring (Weeks 5-6)
+**Goal**: Comprehensive system monitoring integration
+
+**Deliverables**:
+- System metrics collection service
+- Real-time metrics dashboard
+- Per-agent resource tracking
+- Alert system implementation
+- Historical data storage
+
+**Team Assignments**:
+- Performance specialist: Monitoring backend
+- Frontend expert: Metrics visualization
+- Data processing expert: Time-series data
+
+#### Phase 4: Neo4j Visualization (Weeks 7-8)
+**Goal**: Interactive semantic memory exploration
+
+**Deliverables**:
+- Neo4j connection service
+- Graph visualization component
+- Search and filter interface
+- Real-time update mechanism
+- Relationship explorer
+
+**Team Assignments**:
+- Data processing expert: Neo4j integration
+- Frontend expert: Graph visualization
+- Lead developer: API design
+
+#### Phase 5: Workflow Enhancement (Weeks 9-10)
+**Goal**: Advanced team coordination features
+
+**Deliverables**:
+- GitHub API integration
+- Task management system
+- Inter-agent communication
+- Shared knowledge base
+- Workflow automation
+
+**Team Assignments**:
+- Project manager: Workflow design
+- Chrome extension specialist: GitHub integration
+- Frontend expert: Workflow UI
+
+#### Phase 6: Polish & Deployment (Weeks 11-12)
+**Goal**: Production-ready deployment
+
+**Deliverables**:
+- Performance optimization
+- Security hardening
+- Documentation completion
+- Deployment automation
+- User training materials
+
+**Team Assignments**:
+- Performance specialist: Optimization
+- Lead developer: Security review
+- All team: Documentation
+
+### Resource Requirements
+
+#### Development Team
+- **Lead Developer/Architect**: System design, code review
+- **Frontend Expert**: UI/UX, visualization components
+- **Performance Specialist**: Monitoring, optimization
+- **Data Processing Expert**: Neo4j, data pipelines
+- **Monorepo Specialist**: Build system, CI/CD
+- **Chrome Extension Specialist**: Desktop integration
 
 #### Infrastructure
-- **Containerization**: Docker with security constraints
-- **Orchestration**: Docker Compose for development
-- **Databases**: PostgreSQL (metadata), Redis (caching)
-- **Monitoring**: Prometheus + Grafana stack
-- **Security**: JWT auth, RBAC, audit logging
+- **Development Environment**:
+  - Multi-core server (8+ cores, 32GB RAM)
+  - GPU optional but beneficial
+  - SSD storage (500GB+)
+  - High-bandwidth network
 
-## Key Features & Capabilities
+- **Production Environment**:
+  - Dedicated server or cloud instance
+  - 16+ cores, 64GB+ RAM
+  - Neo4j database server
+  - Redis cache server
+  - Monitoring infrastructure
 
-### 1. Autonomous Coding Agents
-**Core Capabilities**:
-- Full codebase awareness and context understanding
-- Direct file operations (read, write, edit, delete)
-- Git integration (commits, PRs, branch management)
-- Terminal/bash command execution with sandboxing
-- Multi-step task planning and execution
-- Code generation, debugging, and refactoring
+#### Tools & Services
+- GitHub for version control
+- Vercel/AWS for hosting
+- Neo4j Aura or self-hosted
+- Prometheus + Grafana
+- Docker Hub for images
 
-**Advanced Features**:
-- Visual drag-and-drop file support
-- Streaming JSON output for automation
-- Multi-agent coordination with shared context
-- Custom system prompt configuration
-- Agent memory and learning capabilities
+### Success Metrics
 
-### 2. Multi-Model Support
-**Supported Models**:
-- **OpenAI GPT-4o**: Primary model for cost optimization
-- **Claude 3.5 Sonnet**: Via Anthropic API for specialized tasks
-- **Future Models**: Extensible architecture for new models
-- **Local Models**: Support for self-hosted models
+#### Technical KPIs
+- Agent spawn time < 5 seconds
+- WebSocket latency < 50ms
+- System metrics update rate: 1Hz
+- Graph render time < 2 seconds
+- 99.9% uptime target
 
-**Model Management**:
-- Dynamic model switching per task
-- Cost tracking and optimization
-- Performance monitoring
-- Custom model configurations
+#### User Experience KPIs
+- Time to first command < 10 seconds
+- Agent response visibility < 100ms
+- Smooth 60fps UI interactions
+- Zero data loss on reconnection
 
-### 3. MCP Server Integration
-**Protocol Implementation**:
-- Full MCP (Model Context Protocol) support
-- Dynamic server discovery and registration
-- Tool capability negotiation
-- Real-time server status monitoring
+#### Business Value KPIs
+- 50% reduction in coordination overhead
+- 75% faster issue resolution
+- 90% reduction in context switching
+- 100% visibility into team activities
 
-**Available Tools**:
-- File system operations
-- Git commands
-- Database connections
-- API integrations
-- Custom business logic
-- External service connectors
+### Risk Analysis & Mitigation
 
-### 4. Advanced Agent Terminal
-**Interactive Features**:
-- Full terminal emulation with xterm.js
-- Syntax highlighting and auto-completion
-- Command history and session persistence
-- Multi-tab support for parallel agents
-- Real-time output streaming
-- Emergency stop and interrupt capabilities
-
-**Security Features**:
-- Command sanitization and validation
-- Resource limits and timeouts
-- Audit logging of all commands
-- Sandboxed execution environment
-
-### 5. System Configuration & Management
-**Agent Configuration**:
-- Custom system prompts (24,000+ token support)
-- Tool selection and permissions
-- Resource allocation and limits
-- Model selection and parameters
-
-**System Monitoring**:
-- Real-time performance metrics
-- Cost tracking and budgeting
-- Usage analytics and reporting
-- Alert system for issues
-
-## Development Phases
-
-### Phase 1: OpenAI Integration & Core Agent (Weeks 1-3)
-**Goal**: Basic autonomous coding agent with OpenAI GPT-4o
-
-**Deliverables**:
-- OpenAI API integration with streaming
-- Basic agent terminal interface
-- File operation capabilities
-- Simple command execution
-- Authentication and security framework
-
-**Success Criteria**:
-- Agent can read, write, and edit files
-- Basic git operations functional
-- Secure command execution working
-- Cost tracking implemented
-
-### Phase 2: MCP Server Framework (Weeks 4-6)
-**Goal**: Full MCP protocol implementation
-
-**Deliverables**:
-- MCP protocol client implementation
-- Server discovery and registration
-- Tool capability management
-- Dynamic tool loading
-- Server health monitoring
-
-**Success Criteria**:
-- MCP servers can be added dynamically
-- Tool execution through MCP working
-- Server status monitoring operational
-- Multiple MCP servers supported
-
-### Phase 3: Advanced Agent Features (Weeks 7-9)
-**Goal**: Enhanced agent capabilities and multi-agent support
-
-**Deliverables**:
-- Multi-agent coordination
-- Advanced system prompts
-- Code analysis and generation
-- Git workflow automation
-- Agent memory and context
-
-**Success Criteria**:
-- Multiple agents can work collaboratively
-- Complex coding tasks completed autonomously
-- Git workflows fully automated
-- Agent performance optimized
-
-### Phase 4: Security & Production Hardening (Weeks 10-12)
-**Goal**: Enterprise-ready security and deployment
-
-**Deliverables**:
-- Docker sandboxing implementation
-- RBAC and permission systems
-- Comprehensive audit logging
-- Performance optimization
-- Production deployment pipeline
-
-**Success Criteria**:
-- Security audit passed
-- Performance targets met
-- Production deployment successful
-- Documentation complete
-
-## Team Assignments & Responsibilities
-
-### Core Development Team
-- **Lead Developer/Architect**: System architecture, OpenAI integration
-- **Frontend Expert**: Dashboard UI, agent terminals, visualization
-- **Backend Specialist**: Microservices, MCP integration, APIs
-- **Security Engineer**: Sandboxing, authentication, audit systems
-- **Performance Engineer**: Optimization, monitoring, cost tracking
-- **DevOps Engineer**: Infrastructure, deployment, CI/CD
-
-### Specialized Assignments
-- **MCP Integration**: Backend specialist + lead developer
-- **Agent Terminal UI**: Frontend expert + performance engineer
-- **Security Framework**: Security engineer + lead developer
-- **System Monitoring**: Performance engineer + backend specialist
-- **OpenAI Gateway**: Lead developer + backend specialist
-
-## Success Metrics & KPIs
-
-### Technical Performance
-- **Agent Response Time**: < 2 seconds for simple operations
-- **File Operation Speed**: < 500ms for read/write operations
-- **System Availability**: 99.9% uptime target
-- **Resource Efficiency**: < 1GB RAM per agent instance
-- **Cost Per Operation**: 30-40% below Claude Code equivalent
-
-### Business Impact
-- **Development Velocity**: 50% increase in coding productivity
-- **Cost Savings**: 30-40% reduction vs Claude Code
-- **Error Reduction**: 25% fewer bugs through automated testing
-- **Time to Market**: 40% faster feature delivery
-- **Developer Satisfaction**: 90%+ positive feedback
-
-### Security & Compliance
-- **Zero Security Incidents**: No data breaches or unauthorized access
-- **Audit Compliance**: 100% of operations logged and traceable
-- **Resource Isolation**: Complete sandboxing of agent operations
-- **Data Protection**: All sensitive data encrypted and secured
-
-## Risk Analysis & Mitigation
-
-### Technical Risks
+#### Technical Risks
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| OpenAI API rate limits | High | Medium | Multiple API keys, intelligent queuing |
-| MCP server compatibility | Medium | Low | Comprehensive testing, fallback mechanisms |
-| Security vulnerabilities | High | Low | Regular audits, sandboxing, least privilege |
-| Performance bottlenecks | Medium | Medium | Load testing, optimization, scaling |
+| WebSocket scalability | High | Medium | Implement clustering, load balancing |
+| Process spawning limits | High | Low | Container orchestration, resource pools |
+| Neo4j performance | Medium | Medium | Query optimization, caching layer |
+| Real-time sync issues | Medium | High | Event sourcing, conflict resolution |
 
-### Business Risks
+#### Operational Risks
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| Model API price increases | Medium | High | Multi-model support, cost monitoring |
-| Competition from Claude Code | Low | High | Superior features, cost advantage |
-| Regulatory compliance | High | Low | Built-in compliance features, audit trails |
-| Team expertise gaps | Medium | Low | Training, documentation, gradual rollout |
+| Agent crashes | High | Medium | Auto-restart, health checks |
+| Resource exhaustion | High | Low | Resource limits, monitoring alerts |
+| Network failures | Medium | Low | Reconnection logic, offline mode |
+| Data corruption | High | Low | Backup strategy, audit logs |
 
-## Budget & Resource Requirements
+### Timeline Estimates
 
-### Development Costs (12 weeks)
-- **Team Salaries**: 6 developers × 12 weeks = $360,000
-- **Infrastructure Setup**: $10,000
-- **Tool Licenses & APIs**: $5,000
-- **Security Audits**: $15,000
-- **Contingency (15%)**: $58,500
-- **Total Development**: $448,500
+**Total Duration**: 12 weeks
 
-### Operational Costs (Monthly)
-- **Server Infrastructure**: $500-1,000
-- **API Costs**: $200-500 per developer
-- **Monitoring & Tools**: $100-200
-- **Maintenance**: $2,000-3,000
-- **Total Monthly**: $2,800-4,700
+**Milestones**:
+- Week 2: Basic dashboard operational
+- Week 4: Multi-agent management working
+- Week 6: System monitoring integrated
+- Week 8: Neo4j visualization complete
+- Week 10: Workflow features implemented
+- Week 12: Production deployment
 
-### ROI Calculation
-- **Cost Savings**: 30-40% vs Claude Code per developer
-- **Productivity Gains**: 50% increase in development velocity
-- **Break-even Point**: 6-8 months for team of 10 developers
-- **Annual Savings**: $150,000-250,000 for team of 10
+**Buffer**: 2 weeks contingency for unforeseen challenges
 
-## Implementation Timeline
+### Budget Considerations
 
-### Phase 1: Foundation (Weeks 1-3)
-- Week 1: Project setup, OpenAI integration
-- Week 2: Basic agent terminal, file operations
-- Week 3: Security framework, authentication
+#### Development Costs
+- 6 developers × 12 weeks = 72 developer-weeks
+- Infrastructure setup: $5,000
+- Tool licenses: $2,000/year
+- Cloud services: $500/month
 
-### Phase 2: MCP Integration (Weeks 4-6)
-- Week 4: MCP protocol implementation
-- Week 5: Server discovery, tool management
-- Week 6: Multiple MCP server support
+#### Ongoing Operational Costs
+- Server hosting: $200-500/month
+- Neo4j hosting: $100-300/month
+- Monitoring tools: $50-100/month
+- Maintenance: 20% of development cost annually
 
-### Phase 3: Advanced Features (Weeks 7-9)
-- Week 7: Multi-agent coordination
-- Week 8: Advanced coding capabilities
-- Week 9: Git workflow automation
+### Next Steps
 
-### Phase 4: Production Ready (Weeks 10-12)
-- Week 10: Security hardening, Docker sandboxing
-- Week 11: Performance optimization, monitoring
-- Week 12: Production deployment, documentation
+1. **Immediate Actions**:
+   - Approve technology stack
+   - Set up development environment
+   - Create GitHub repository structure
+   - Initialize project with tooling
 
-## Competitive Advantages
+2. **Week 1 Goals**:
+   - Complete project setup
+   - Implement basic WebSocket server
+   - Create dashboard skeleton
+   - Establish CI/CD pipeline
 
-### Versus Claude Code
-- **30-40% Cost Savings**: Direct API pricing
-- **Full Customization**: Custom models, tools, prompts
-- **Self-Hosted**: No vendor lock-in, data stays internal
-- **Enhanced Features**: Multi-agent coordination, custom MCP
+3. **Team Kickoff**:
+   - Review scope with all specialists
+   - Assign Phase 1 tasks
+   - Set up communication channels
+   - Schedule daily standups
 
-### Versus GitHub Copilot
-- **Autonomous Agents**: Full task completion, not just suggestions
-- **Multi-Model Support**: Best model for each task
-- **Codebase Awareness**: Full project context understanding
-- **Advanced Tools**: Git, terminal, file operations
+### Appendices
 
-### Versus Cursor
-- **Web-Based**: No IDE dependency, universal access
-- **Multi-Agent**: Parallel task execution
-- **Enterprise Features**: RBAC, audit logs, compliance
-- **Extensible**: Custom MCP servers and tools
+#### A. Technology Alternatives Considered
 
-## Next Steps & Immediate Actions
+**Frontend Alternatives**:
+- Vue.js 3: Excellent but less team familiarity
+- Svelte: Performance benefits but smaller ecosystem
+- Electron: Desktop-first but limits accessibility
 
-### Week 1 Priorities
-1. **Team Assembly**: Confirm all specialist assignments
-2. **Infrastructure Setup**: AWS/GCP accounts, development environment
-3. **Repository Structure**: Initialize monorepo with proper tooling
-4. **OpenAI Integration**: Basic API connection and streaming
-5. **Security Planning**: Define security requirements and architecture
+**Backend Alternatives**:
+- Rust/Tokio: Maximum performance but longer development
+- Go: Good concurrency but less library support
+- Deno: Modern but immature ecosystem
 
-### Critical Path Items
-1. OpenAI API integration and cost optimization
-2. MCP protocol implementation
-3. Security framework and sandboxing
-4. Agent terminal and file operations
-5. Multi-agent coordination system
+#### B. API Specifications
 
-### Risk Mitigation Priorities
-1. Secure OpenAI API access and rate limit management
-2. Establish security framework early
-3. Plan for MCP server compatibility testing
-4. Create cost monitoring and alerting system
+Will be detailed in separate API_SPEC.md document
+
+#### C. Database Schema
+
+Will be detailed in separate SCHEMA.md document
+
+#### D. Deployment Guide
+
+Will be created in DEPLOYMENT.md during Phase 6
 
 ---
 
-*This project represents a significant opportunity to revolutionize autonomous coding while delivering substantial cost savings and enhanced capabilities. The combination of direct API access, MCP server integration, and multi-agent coordination creates a platform that surpasses existing solutions in both functionality and economics.*
-
-*Document Version: 2.0*  
-*Last Updated: 2025-01-16*  
-*Author: Project Management Team*  
-*Project Status: Approved for Development*
+*Document Version: 1.0*
+*Last Updated: 2025-01-16*
+*Author: Project Management Team*
