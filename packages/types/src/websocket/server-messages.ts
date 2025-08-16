@@ -26,7 +26,7 @@ export interface AgentOutputMessage extends WSMessage {
   type: 'agent:output';
   payload: {
     agentId: string;
-    stream: 'stdout' | 'stderr';
+    stream: 'stdout' | 'stderr' | 'ai_response';
     data: string;
     timestamp: number;
     sequence: number;
