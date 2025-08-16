@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "test:coverage:watch": "vitest watch --coverage",
     "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test:run",
+    "test:smoke": "node test/smoke/smoke-tests.js",
     "prepare": "husky install",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
