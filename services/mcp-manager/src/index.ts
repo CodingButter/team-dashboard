@@ -21,9 +21,18 @@ declare module 'fastify' {
 async function createServer() {
   // Create Fastify instance
   const fastify = Fastify({
-    logger: {
+    logger: config.logging.pretty ? {
       level: config.logging.level,
-      prettyPrint: config.logging.pretty
+      transport: {
+        target: require.resolve('pino-pretty'),
+        options: {
+          translateTime: 'HH:MM:ss Z',
+          ignore: 'pid,hostname',
+          colorize: true
+        }
+      }
+    } : {
+      level: config.logging.level
     }
   })
 
@@ -64,17 +73,17 @@ async function createServer() {
         await fastify.close()
         process.exit(0)
       } catch (error) {
-        fastify.log.error('Error during shutdown:', error)
+        fastify.log.error(`Error during shutdown: ${String(error)}`)
         process.exit(1)
       }
     }
 
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+    process.on('SIGTERM', () => void gracefulShutdown('SIGTERM'))
+    process.on('SIGINT', () => void gracefulShutdown('SIGINT'))
 
     return fastify
   } catch (error) {
-    fastify.log.error('Failed to create server:', error)
+    fastify.log.error(`Failed to create server: ${String(error)}`)
     throw error
   }
 }
