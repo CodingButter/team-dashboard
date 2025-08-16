@@ -14,13 +14,17 @@
     "@team-dashboard/types": "workspace:*",
     "@team-dashboard/ui": "workspace:*",
     "@team-dashboard/utils": "workspace:*",
+    "@xterm/addon-clipboard": "^0.1.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-search": "^0.15.0",
+    "@xterm/addon-unicode11": "^0.8.0",
+    "@xterm/addon-web-links": "^0.11.0",
     "next": "^14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "socket.io-client": "^4.7.4",
-    "xterm": "^5.3.0",
-    "@xterm/addon-fit": "^0.10.0",
-    "vis-network": "^9.1.6"
+    "vis-network": "^9.1.6",
+    "xterm": "^5.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { SimpleTerminal } from '../terminal/simple-terminal'
+import { AgentTerminal } from '../terminal/AgentTerminal'
 
 interface Agent {
   id: string
@@ -100,10 +100,12 @@ export function AgentCard({ agent, onCommand, onTerminate, onPause, onResume }: 
       </div>
 
       {/* Terminal */}
-      <SimpleTerminal
+      <AgentTerminal
         agentId={agent.id}
         onCommand={(command) => onCommand?.(agent.id, command)}
-        className="min-h-[200px]"
+        height={300}
+        theme="dark"
+        className="min-h-[300px]"
       />
 
       {/* Actions */}
