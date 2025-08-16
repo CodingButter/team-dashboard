@@ -1,0 +1,39 @@
+{
+  "name": "@team-dashboard/chrome-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for Team Dashboard - Autonomous coding agents integration",
+  "private": true,
+  "scripts": {
+    "build": "webpack --mode=production",
+    "dev": "webpack --mode=development --watch",
+    "test": "jest",
+    "lint": "eslint src/**/*.js",
+    "zip": "zip -r team-dashboard-extension.zip dist/",
+    "clean": "rm -rf dist/"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.251",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0"
+  },
+  "dependencies": {},
+  "keywords": [
+    "chrome-extension",
+    "team-dashboard", 
+    "autonomous-agents",
+    "coding-assistant",
+    "productivity"
+  ],
+  "author": "Team Dashboard",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/team-dashboard/chrome-extension"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
