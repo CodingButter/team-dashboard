@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { ToolApprovalRequest, ToolExecution } from '@team-dashboard/types'
+import { useWebSocket } from '../../hooks/use-websocket'
 
 interface ToolApprovalProps {
   request: ToolApprovalRequest
@@ -9,6 +10,7 @@ interface ToolApprovalProps {
   onDeny: (requestId: string, reasoning?: string) => void
   onIgnore?: (requestId: string) => void
   isProcessing?: boolean
+  isSelected?: boolean
 }
 
 interface RiskIndicatorProps {
@@ -112,7 +114,8 @@ export function ToolApproval({
   onApprove, 
   onDeny, 
   onIgnore,
-  isProcessing = false 
+  isProcessing = false,
+  isSelected = false
 }: ToolApprovalProps) {
   const [reasoning, setReasoning] = useState('')
   const [showFullInput, setShowFullInput] = useState(false)
@@ -170,7 +173,11 @@ export function ToolApproval({
   const dangerousPatterns = getDangerousPatterns(request.toolName, request.input)
 
   return (
-    <div className="bg-card border border-border rounded-lg p-6 space-y-6">
+    <div className={`bg-card border rounded-lg p-6 space-y-6 transition-all ${
+      isSelected 
+        ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-950/20 shadow-md' 
+        : 'border-border hover:border-border/80'
+    }`}>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-2">
@@ -319,6 +326,8 @@ interface ToolApprovalQueueProps {
   onApprove: (requestId: string, reasoning?: string) => void
   onDeny: (requestId: string, reasoning?: string) => void
   onIgnore?: (requestId: string) => void
+  onBatchApprove?: (requestIds: string[], reasoning?: string) => void
+  onBatchDeny?: (requestIds: string[], reasoning?: string) => void
   processingRequestIds?: string[]
 }
 
@@ -327,8 +336,14 @@ export function ToolApprovalQueue({
   onApprove, 
   onDeny, 
   onIgnore,
+  onBatchApprove,
+  onBatchDeny,
   processingRequestIds = [] 
 }: ToolApprovalQueueProps) {
+  const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set())
+  const [batchReasoning, setBatchReasoning] = useState('')
+  const [showBatchActions, setShowBatchActions] = useState(false)
+  
   const sortedRequests = [...requests].sort((a, b) => {
     // Sort by risk level (critical first), then by timestamp
     const riskOrder = { critical: 0, high: 1, medium: 2, low: 3 }
@@ -338,6 +353,44 @@ export function ToolApprovalQueue({
     if (aRisk !== bRisk) return aRisk - bRisk
     return b.requestedAt - a.requestedAt
   })
+  
+  const handleSelectRequest = (requestId: string, selected: boolean) => {
+    setSelectedRequests(prev => {
+      const newSet = new Set(prev)
+      if (selected) {
+        newSet.add(requestId)
+      } else {
+        newSet.delete(requestId)
+      }
+      return newSet
+    })
+  }
+  
+  const handleSelectAll = (selected: boolean) => {
+    setSelectedRequests(selected ? new Set(requests.map(r => r.id)) : new Set())
+  }
+  
+  const handleBatchApprove = () => {
+    if (selectedRequests.size > 0 && onBatchApprove) {
+      onBatchApprove(Array.from(selectedRequests), batchReasoning.trim() || undefined)
+      setSelectedRequests(new Set())
+      setBatchReasoning('')
+      setShowBatchActions(false)
+    }
+  }
+  
+  const handleBatchDeny = () => {
+    if (selectedRequests.size > 0 && onBatchDeny) {
+      onBatchDeny(Array.from(selectedRequests), batchReasoning.trim() || undefined)
+      setSelectedRequests(new Set())
+      setBatchReasoning('')
+      setShowBatchActions(false)
+    }
+  }
+  
+  useEffect(() => {
+    setShowBatchActions(selectedRequests.size > 0)
+  }, [selectedRequests])
 
   if (requests.length === 0) {
     return (
@@ -377,15 +430,96 @@ export function ToolApprovalQueue({
         </div>
       </div>
       
+      {/* Batch Actions Bar */}
+      {showBatchActions && (
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              {selectedRequests.size} request{selectedRequests.size !== 1 ? 's' : ''} selected
+            </div>
+            <button
+              onClick={() => setSelectedRequests(new Set())}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+            >
+              Clear selection
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                Batch Reasoning (Optional)
+              </label>
+              <textarea
+                value={batchReasoning}
+                onChange={(e) => setBatchReasoning(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-800 rounded-md text-foreground"
+                rows={2}
+                placeholder="Reason for batch approval/denial..."
+              />
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={handleBatchApprove}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors flex items-center space-x-2"
+              >
+                <span>✓</span>
+                <span>Approve All ({selectedRequests.size})</span>
+              </button>
+              
+              <button
+                onClick={handleBatchDeny}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center space-x-2"
+              >
+                <span>✗</span>
+                <span>Deny All ({selectedRequests.size})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Select All Bar */}
+      {requests.length > 1 && (
+        <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
+          <label className="flex items-center space-x-2 text-sm">
+            <input
+              type="checkbox"
+              checked={selectedRequests.size === requests.length && requests.length > 0}
+              onChange={(e) => handleSelectAll(e.target.checked)}
+              className="rounded border-border"
+            />
+            <span className="text-foreground">Select all {requests.length} requests</span>
+          </label>
+          
+          <div className="text-xs text-muted-foreground">
+            {selectedRequests.size} of {requests.length} selected
+          </div>
+        </div>
+      )}
+      
       {sortedRequests.map(request => (
-        <ToolApproval
-          key={request.id}
-          request={request}
-          onApprove={onApprove}
-          onDeny={onDeny}
-          onIgnore={onIgnore}
-          isProcessing={processingRequestIds.includes(request.id)}
-        />
+        <div key={request.id} className="relative">
+          {requests.length > 1 && (
+            <div className="absolute top-6 left-6 z-10">
+              <input
+                type="checkbox"
+                checked={selectedRequests.has(request.id)}
+                onChange={(e) => handleSelectRequest(request.id, e.target.checked)}
+                className="rounded border-border bg-background"
+              />
+            </div>
+          )}
+          <ToolApproval
+            request={request}
+            onApprove={onApprove}
+            onDeny={onDeny}
+            onIgnore={onIgnore}
+            isProcessing={processingRequestIds.includes(request.id)}
+            isSelected={selectedRequests.has(request.id)}
+          />
+        </div>
       ))}
     </div>
   )
