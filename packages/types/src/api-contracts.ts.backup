@@ -1,0 +1,501 @@
+/**
+ * API Contracts for Team Dashboard
+ * Defines all TypeScript interfaces for REST endpoints and WebSocket events
+ */
+
+// ============================================================================
+// Common Types
+// ============================================================================
+
+export type AgentModel = 'claude-3-opus' | 'claude-3-sonnet' | 'claude-3-haiku';
+export type AgentStatus = 'starting' | 'running' | 'paused' | 'stopping' | 'stopped' | 'crashed';
+export type LogLevel = 'debug' | 'info' | 'warning' | 'error' | 'critical';
+export type UserRole = 'admin' | 'operator' | 'viewer';
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  metadata?: {
+    timestamp: number;
+    requestId: string;
+    duration: number;
+  };
+}
+
+export interface PaginatedResponse<T> extends ApiResponse<T[]> {
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// ============================================================================
+// Agent Management
+// ============================================================================
+
+export interface Agent {
+  id: string;
+  name: string;
+  model: AgentModel;
+  status: AgentStatus;
+  workspace: string;
+  pid?: number;
+  createdAt: string;
+  startedAt?: string;
+  stoppedAt?: string;
+  lastActivity?: string;
+  resourceLimits?: {
+    memory: number; // MB
+    cpu: number;    // Cores
+  };
+  metrics?: AgentMetrics;
+  tags?: string[];
+}
+
+export interface AgentMetrics {
+  cpu: number;          // Percentage
+  memory: number;       // MB
+  threads: number;
+  handles?: number;
+  uptime: number;       // Seconds
+  apiCalls: number;
+  tokensUsed: number;
+}
+
+export interface CreateAgentRequest {
+  name: string;
+  model: AgentModel;
+  workspace: string;
+  environment?: Record<string, string>;
+  resourceLimits?: {
+    memory?: number;
+    cpu?: number;
+  };
+  tags?: string[];
+  autoStart?: boolean;
+}
+
+export interface AgentCommand {
+  command: string;
+  interactive?: boolean;
+  timeout?: number;
+  workingDirectory?: string;
+  environment?: Record<string, string>;
+}
+
+export interface AgentCommandResponse {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  duration: number;
+  timedOut: boolean;
+}
+
+// ============================================================================
+// System Monitoring
+// ============================================================================
+
+export interface SystemMetrics {
+  timestamp: number;
+  cpu: {
+    usage: number;
+    cores: number;
+    loadAverage: [number, number, number];
+    temperature?: number;
+  };
+  memory: {
+    total: number;
+    used: number;
+    free: number;
+    available: number;
+    percent: number;
+    swap?: {
+      total: number;
+      used: number;
+      percent: number;
+    };
+  };
+  disk: {
+    devices: Array<{
+      device: string;
+      mountPoint: string;
+      total: number;
+      used: number;
+      free: number;
+      percent: number;
+    }>;
+  };
+  network: {
+    interfaces: Array<{
+      name: string;
+      bytesIn: number;
+      bytesOut: number;
+      packetsIn: number;
+      packetsOut: number;
+      errorsIn: number;
+      errorsOut: number;
+    }>;
+  };
+  processes: {
+    total: number;
+    running: number;
+    sleeping: number;
+    stopped: number;
+    zombie: number;
+  };
+}
+
+export interface MetricsQuery {
+  startTime?: string;
+  endTime?: string;
+  interval?: '1m' | '5m' | '15m' | '1h' | '1d';
+  metrics?: string[];
+  agentId?: string;
+}
+
+export interface MetricsHistoryResponse {
+  metrics: SystemMetrics[];
+  aggregations?: {
+    cpu: { min: number; max: number; avg: number };
+    memory: { min: number; max: number; avg: number };
+  };
+}
+
+// ============================================================================
+// Neo4j Graph Operations
+// ============================================================================
+
+export interface GraphEntity {
+  id: string;
+  type: string;
+  name: string;
+  properties: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GraphRelationship {
+  id: string;
+  type: string;
+  startNodeId: string;
+  endNodeId: string;
+  properties: Record<string, any>;
+}
+
+export interface GraphSearchQuery {
+  query: string;
+  entityTypes?: string[];
+  limit?: number;
+  offset?: number;
+  includeRelationships?: boolean;
+}
+
+export interface GraphSearchResponse {
+  entities: GraphEntity[];
+  relationships?: GraphRelationship[];
+  totalCount: number;
+  searchTime: number;
+}
+
+export interface CypherQuery {
+  query: string;
+  parameters?: Record<string, any>;
+  timeout?: number;
+}
+
+export interface CypherQueryResponse {
+  columns: string[];
+  data: any[][];
+  stats?: {
+    nodesCreated: number;
+    nodesDeleted: number;
+    relationshipsCreated: number;
+    relationshipsDeleted: number;
+    propertiesSet: number;
+    labelsAdded: number;
+    labelsRemoved: number;
+  };
+}
+
+// ============================================================================
+// Session Management
+// ============================================================================
+
+export interface Session {
+  id: string;
+  userId: string;
+  agentIds: string[];
+  createdAt: string;
+  lastActivity: string;
+  expiresAt: string;
+}
+
+export interface SessionState {
+  agents: Agent[];
+  subscriptions: string[];
+  preferences: UserPreferences;
+}
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'system';
+  terminalFont: string;
+  terminalFontSize: number;
+  shortcuts: Record<string, string>;
+  defaultWorkspace: string;
+  autoSaveSession: boolean;
+}
+
+// ============================================================================
+// Authentication & Authorization
+// ============================================================================
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+  totp?: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  refreshToken: string;
+  user: User;
+  expiresIn: number;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: UserRole;
+  permissions: string[];
+  preferences: UserPreferences;
+  createdAt: string;
+  lastLogin: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  token: string;
+  expiresIn: number;
+}
+
+// ============================================================================
+// Task Management
+// ============================================================================
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  assignedAgent?: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  priority: 'low' | 'normal' | 'high' | 'critical';
+  dependencies?: string[];
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  deadline?: string;
+  output?: any;
+  error?: string;
+}
+
+export interface CreateTaskRequest {
+  title: string;
+  description: string;
+  assignedAgent?: string;
+  priority?: 'low' | 'normal' | 'high' | 'critical';
+  dependencies?: string[];
+  deadline?: string;
+  autoStart?: boolean;
+}
+
+export interface TaskUpdate {
+  status?: Task['status'];
+  assignedAgent?: string;
+  priority?: Task['priority'];
+  output?: any;
+  error?: string;
+}
+
+// ============================================================================
+// GitHub Integration
+// ============================================================================
+
+export interface GitHubIssue {
+  id: number;
+  number: number;
+  title: string;
+  body: string;
+  state: 'open' | 'closed';
+  assignees: string[];
+  labels: string[];
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string;
+}
+
+export interface GitHubPullRequest {
+  id: number;
+  number: number;
+  title: string;
+  body: string;
+  state: 'open' | 'closed' | 'merged';
+  head: string;
+  base: string;
+  assignees: string[];
+  reviewers: string[];
+  labels: string[];
+  createdAt: string;
+  updatedAt: string;
+  mergedAt?: string;
+}
+
+export interface GitHubWebhookEvent {
+  type: 'issues' | 'pull_request' | 'push' | 'workflow_run';
+  action: string;
+  payload: any;
+  repository: string;
+  sender: string;
+  timestamp: string;
+}
+
+// ============================================================================
+// Logs & Events
+// ============================================================================
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: LogLevel;
+  source: string;
+  message: string;
+  metadata?: Record<string, any>;
+  agentId?: string;
+  userId?: string;
+  requestId?: string;
+}
+
+export interface LogQuery {
+  startTime?: string;
+  endTime?: string;
+  levels?: LogLevel[];
+  sources?: string[];
+  agentId?: string;
+  userId?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface SystemEvent {
+  id: string;
+  type: string;
+  timestamp: string;
+  source: string;
+  data: any;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+}
+
+// ============================================================================
+// Alerts & Notifications
+// ============================================================================
+
+export interface Alert {
+  id: string;
+  type: 'resource' | 'performance' | 'security' | 'agent' | 'system';
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  title: string;
+  message: string;
+  source: string;
+  timestamp: string;
+  acknowledged: boolean;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  resolved: boolean;
+  resolvedAt?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  condition: {
+    metric: string;
+    operator: '>' | '<' | '>=' | '<=' | '==' | '!=';
+    threshold: number;
+    duration?: number; // seconds
+  };
+  actions: Array<{
+    type: 'email' | 'webhook' | 'log';
+    config: Record<string, any>;
+  }>;
+}
+
+// ============================================================================
+// REST API Endpoints Type Definitions
+// ============================================================================
+
+export interface ApiEndpoints {
+  // Agent Management
+  'GET /api/agents': () => Promise<ApiResponse<Agent[]>>;
+  'GET /api/agents/:id': (id: string) => Promise<ApiResponse<Agent>>;
+  'POST /api/agents': (body: CreateAgentRequest) => Promise<ApiResponse<Agent>>;
+  'DELETE /api/agents/:id': (id: string) => Promise<ApiResponse<void>>;
+  'POST /api/agents/:id/command': (id: string, body: AgentCommand) => Promise<ApiResponse<AgentCommandResponse>>;
+  'POST /api/agents/:id/start': (id: string) => Promise<ApiResponse<void>>;
+  'POST /api/agents/:id/stop': (id: string) => Promise<ApiResponse<void>>;
+  'POST /api/agents/:id/restart': (id: string) => Promise<ApiResponse<void>>;
+  
+  // System Monitoring
+  'GET /api/metrics/system': () => Promise<ApiResponse<SystemMetrics>>;
+  'GET /api/metrics/agents': () => Promise<ApiResponse<AgentMetrics[]>>;
+  'GET /api/metrics/history': (query: MetricsQuery) => Promise<ApiResponse<MetricsHistoryResponse>>;
+  
+  // Neo4j Graph
+  'GET /api/graph/search': (query: GraphSearchQuery) => Promise<ApiResponse<GraphSearchResponse>>;
+  'GET /api/graph/entity/:id': (id: string) => Promise<ApiResponse<GraphEntity>>;
+  'GET /api/graph/relationships': (entityId: string) => Promise<ApiResponse<GraphRelationship[]>>;
+  'POST /api/graph/query': (body: CypherQuery) => Promise<ApiResponse<CypherQueryResponse>>;
+  
+  // Session Management
+  'GET /api/session': () => Promise<ApiResponse<Session>>;
+  'POST /api/session/save': (state: SessionState) => Promise<ApiResponse<void>>;
+  'POST /api/session/restore': (sessionId: string) => Promise<ApiResponse<SessionState>>;
+  
+  // Authentication
+  'POST /api/auth/login': (body: LoginRequest) => Promise<ApiResponse<LoginResponse>>;
+  'POST /api/auth/logout': () => Promise<ApiResponse<void>>;
+  'POST /api/auth/refresh': (body: RefreshTokenRequest) => Promise<ApiResponse<RefreshTokenResponse>>;
+  'GET /api/auth/me': () => Promise<ApiResponse<User>>;
+  
+  // Task Management
+  'GET /api/tasks': () => Promise<ApiResponse<Task[]>>;
+  'POST /api/tasks': (body: CreateTaskRequest) => Promise<ApiResponse<Task>>;
+  'PATCH /api/tasks/:id': (id: string, body: TaskUpdate) => Promise<ApiResponse<Task>>;
+  'DELETE /api/tasks/:id': (id: string) => Promise<ApiResponse<void>>;
+  
+  // Logs & Events
+  'GET /api/logs': (query: LogQuery) => Promise<PaginatedResponse<LogEntry>>;
+  'GET /api/events': () => Promise<ApiResponse<SystemEvent[]>>;
+  
+  // Alerts
+  'GET /api/alerts': () => Promise<ApiResponse<Alert[]>>;
+  'POST /api/alerts/:id/acknowledge': (id: string) => Promise<ApiResponse<void>>;
+  'POST /api/alerts/:id/resolve': (id: string) => Promise<ApiResponse<void>>;
+  'GET /api/alerts/rules': () => Promise<ApiResponse<AlertRule[]>>;
+  'POST /api/alerts/rules': (body: AlertRule) => Promise<ApiResponse<AlertRule>>;
+}
+
+// Export type-safe API client interface
+export type ApiClient = ApiEndpoints;

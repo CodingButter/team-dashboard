@@ -1,0 +1,551 @@
+/**
+ * WebSocket Server Proof of Concept
+ * Basic implementation of the WebSocket protocol for agent management
+ */
+
+import { WebSocketServer, WebSocket } from 'ws';
+import { createServer } from 'http';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  WSMessage,
+  AuthMessage,
+  AgentCommandMessage,
+  CreateAgentMessage,
+  TerminateAgentMessage,
+  SubscribeMessage,
+  AgentStatusMessage,
+  AgentOutputMessage,
+  AckMessage,
+  HeartbeatMessage,
+  isAuthMessage
+} from '@team-dashboard/types';
+import { AgentConnection, DashboardSession } from '@team-dashboard/types';
+import { ErrorCode } from '@team-dashboard/types';
+
+// ============================================================================
+// WebSocket Server Implementation
+// ============================================================================
+
+export class DashboardWebSocketServer {
+  private wss: WebSocketServer;
+  private httpServer: any;
+  private clients: Map<string, ClientConnection> = new Map();
+  private agents: Map<string, AgentConnection> = new Map();
+  private sessions: Map<string, DashboardSession> = new Map();
+  
+  constructor(private port: number = 3001) {
+    this.httpServer = createServer();
+    this.wss = new WebSocketServer({ server: this.httpServer });
+    this.setupServer();
+  }
+  
+  /**
+   * Initialize WebSocket server and event handlers
+   */
+  private setupServer(): void {
+    this.wss.on('connection', (ws: WebSocket, _req: any) => {
+      const clientId = uuidv4();
+      const client = new ClientConnection(clientId, ws);
+      
+      console.log(`[WS] New connection: ${clientId}`);
+      
+      // Store client connection
+      this.clients.set(clientId, client);
+      
+      // Set up event handlers
+      ws.on('message', (data: Buffer) => {
+        this.handleMessage(client, data);
+      });
+      
+      ws.on('close', () => {
+        this.handleDisconnect(client);
+      });
+      
+      ws.on('error', (error) => {
+        console.error(`[WS] Client error ${clientId}:`, error);
+      });
+      
+      // Start authentication timeout
+      client.startAuthTimeout(() => {
+        if (!client.isAuthenticated) {
+          this.sendError(client, ErrorCode.AUTH_FAILED, 'Authentication timeout');
+          ws.close();
+        }
+      });
+      
+      // Set up heartbeat
+      this.setupHeartbeat(client);
+    });
+  }
+  
+  /**
+   * Handle incoming WebSocket messages
+   */
+  private async handleMessage(client: ClientConnection, data: Buffer): Promise<void> {
+    try {
+      const message = JSON.parse(data.toString()) as WSMessage;
+      
+      console.log(`[WS] Message from ${client.id}: ${message.type}`);
+      
+      // Handle authentication first
+      if (isAuthMessage(message)) {
+        await this.handleAuth(client, message);
+        return;
+      }
+      
+      // Require authentication for all other messages
+      if (!client.isAuthenticated) {
+        this.sendError(client, ErrorCode.AUTH_FAILED, 'Not authenticated');
+        return;
+      }
+      
+      // Route message to appropriate handler
+      switch (message.type) {
+        case 'agent:create':
+          await this.handleCreateAgent(client, message as CreateAgentMessage);
+          break;
+        
+        case 'agent:command':
+          await this.handleAgentCommand(client, message as AgentCommandMessage);
+          break;
+        
+        case 'agent:terminate':
+          await this.handleTerminateAgent(client, message as TerminateAgentMessage);
+          break;
+        
+        case 'subscribe:agent':
+        case 'subscribe:metrics':
+        case 'subscribe:logs':
+          await this.handleSubscribe(client, message as SubscribeMessage);
+          break;
+        
+        case 'ping':
+          this.handlePing(client, message as HeartbeatMessage);
+          break;
+        
+        default:
+          this.sendError(client, ErrorCode.UNSUPPORTED_TYPE, `Unknown message type: ${message.type}`);
+      }
+      
+      // Send acknowledgment
+      this.sendAck(client, message.id, true);
+      
+    } catch (error) {
+      console.error('[WS] Message handling error:', error);
+      this.sendError(client, ErrorCode.INVALID_MESSAGE, 'Failed to process message');
+    }
+  }
+  
+  /**
+   * Handle authentication
+   */
+  private async handleAuth(client: ClientConnection, message: AuthMessage): Promise<void> {
+    try {
+      // TODO: Validate JWT token
+      const isValid = await this.validateToken(message.payload.token);
+      
+      if (isValid) {
+        client.isAuthenticated = true;
+        client.userId = 'user-123'; // Extract from token
+        client.clearAuthTimeout();
+        
+        // Create or restore session
+        const session = new DashboardSession(client.userId);
+        this.sessions.set(session.id, session);
+        client.sessionId = session.id;
+        
+        this.sendAck(client, message.id, true);
+        console.log(`[WS] Client ${client.id} authenticated`);
+      } else {
+        this.sendError(client, ErrorCode.AUTH_FAILED, 'Invalid token');
+        client.ws.close();
+      }
+    } catch (error) {
+      this.sendError(client, ErrorCode.AUTH_FAILED, 'Authentication failed');
+      client.ws.close();
+    }
+  }
+  
+  /**
+   * Handle agent creation
+   */
+  private async handleCreateAgent(client: ClientConnection, message: CreateAgentMessage): Promise<void> {
+    try {
+      const agentId = uuidv4();
+      const agent = new AgentConnection({
+        id: agentId,
+        name: message.payload.name,
+        model: message.payload.model,
+        workspace: message.payload.workspace,
+        resourceLimits: message.payload.resourceLimits
+      });
+      
+      // Store agent
+      this.agents.set(agentId, agent);
+      
+      // Add to session
+      const session = this.sessions.get(client.sessionId!);
+      session?.addAgent(agent);
+      
+      // Send creation confirmation
+      this.broadcast({
+        id: uuidv4(),
+        type: 'agent:created',
+        timestamp: Date.now(),
+        payload: {
+          agentId,
+          name: agent.name,
+          pid: 12345, // Mock PID
+          startTime: Date.now()
+        }
+      });
+      
+      // Start mock agent output
+      this.startMockAgentOutput(agentId);
+      
+      console.log(`[WS] Agent created: ${agentId}`);
+      
+    } catch (error) {
+      this.sendError(client, ErrorCode.AGENT_SPAWN_FAILED, 'Failed to create agent');
+    }
+  }
+  
+  /**
+   * Handle agent command
+   */
+  private async handleAgentCommand(client: ClientConnection, message: AgentCommandMessage): Promise<void> {
+    const agent = this.agents.get(message.payload.agentId);
+    
+    if (!agent) {
+      this.sendError(client, ErrorCode.AGENT_NOT_FOUND, 'Agent not found');
+      return;
+    }
+    
+    // Add command to history
+    agent.addCommand(message.payload.command);
+    
+    // Mock command execution
+    setTimeout(() => {
+      const output = `Mock output for command: ${message.payload.command}\n`;
+      
+      this.broadcast({
+        id: uuidv4(),
+        type: 'agent:output',
+        timestamp: Date.now(),
+        payload: {
+          agentId: message.payload.agentId,
+          stream: 'stdout',
+          data: output,
+          timestamp: Date.now(),
+          sequence: 1
+        }
+      } as AgentOutputMessage);
+    }, 100);
+  }
+  
+  /**
+   * Handle agent termination
+   */
+  private async handleTerminateAgent(client: ClientConnection, message: TerminateAgentMessage): Promise<void> {
+    const agent = this.agents.get(message.payload.agentId);
+    
+    if (!agent) {
+      this.sendError(client, ErrorCode.AGENT_NOT_FOUND, 'Agent not found');
+      return;
+    }
+    
+    // Update agent status
+    agent.updateStatus('stopped');
+    
+    // Remove from agents map
+    this.agents.delete(message.payload.agentId);
+    
+    // Send status update
+    this.broadcast({
+      id: uuidv4(),
+      type: 'agent:status',
+      timestamp: Date.now(),
+      payload: {
+        agentId: message.payload.agentId,
+        status: 'stopped'
+      }
+    } as AgentStatusMessage);
+    
+    console.log(`[WS] Agent terminated: ${message.payload.agentId}`);
+  }
+  
+  /**
+   * Handle subscriptions
+   */
+  private async handleSubscribe(client: ClientConnection, message: SubscribeMessage): Promise<void> {
+    const subscriptionId = uuidv4();
+    client.subscriptions.add(subscriptionId);
+    
+    console.log(`[WS] Client ${client.id} subscribed: ${message.type}`);
+    
+    // Start sending updates based on subscription type
+    if (message.type === 'subscribe:metrics') {
+      this.startMetricsUpdates(client);
+    }
+  }
+  
+  /**
+   * Handle ping/pong heartbeat
+   */
+  private handlePing(client: ClientConnection, _message: HeartbeatMessage): void {
+    client.send({
+      id: uuidv4(),
+      type: 'pong',
+      timestamp: Date.now(),
+      payload: { timestamp: Date.now() }
+    });
+  }
+  
+  /**
+   * Handle client disconnect
+   */
+  private handleDisconnect(client: ClientConnection): void {
+    console.log(`[WS] Client disconnected: ${client.id}`);
+    
+    // Clean up client
+    client.cleanup();
+    this.clients.delete(client.id);
+    
+    // Clean up session if needed
+    if (client.sessionId) {
+      // Keep session for reconnection (implement timeout later)
+    }
+  }
+  
+  /**
+   * Set up heartbeat mechanism
+   */
+  private setupHeartbeat(client: ClientConnection): void {
+    const interval = setInterval(() => {
+      if (client.ws.readyState === WebSocket.OPEN) {
+        client.send({
+          id: uuidv4(),
+          type: 'ping',
+          timestamp: Date.now(),
+          payload: { timestamp: Date.now() }
+        });
+      } else {
+        clearInterval(interval);
+      }
+    }, 30000); // 30 seconds
+    
+    client.heartbeatInterval = interval;
+  }
+  
+  /**
+   * Start mock agent output (for POC)
+   */
+  private startMockAgentOutput(agentId: string): void {
+    const outputs = [
+      'Initializing agent workspace...',
+      'Loading environment variables...',
+      'Connecting to services...',
+      'Agent ready for commands.'
+    ];
+    
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < outputs.length) {
+        this.broadcast({
+          id: uuidv4(),
+          type: 'agent:output',
+          timestamp: Date.now(),
+          payload: {
+            agentId,
+            stream: 'stdout',
+            data: outputs[index] + '\n',
+            timestamp: Date.now(),
+            sequence: index
+          }
+        } as AgentOutputMessage);
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 1000);
+  }
+  
+  /**
+   * Start sending metrics updates
+   */
+  private startMetricsUpdates(client: ClientConnection): void {
+    const interval = setInterval(() => {
+      if (client.ws.readyState === WebSocket.OPEN) {
+        client.send({
+          id: uuidv4(),
+          type: 'metrics:update',
+          timestamp: Date.now(),
+          payload: {
+            system: {
+              cpu: {
+                usage: Math.random() * 100,
+                cores: 8,
+                temperature: 45 + Math.random() * 20
+              },
+              memory: {
+                total: 16000000000,
+                used: 8000000000 + Math.random() * 4000000000,
+                available: 8000000000,
+                percent: 50 + Math.random() * 30
+              },
+              disk: {
+                total: 500000000000,
+                used: 250000000000,
+                percent: 50
+              },
+              network: {
+                bytesIn: Math.random() * 1000000,
+                bytesOut: Math.random() * 1000000,
+                packetsIn: Math.random() * 1000,
+                packetsOut: Math.random() * 1000
+              }
+            }
+          }
+        });
+      } else {
+        clearInterval(interval);
+      }
+    }, 1000); // Every second
+  }
+  
+  /**
+   * Validate JWT token (mock implementation)
+   */
+  private async validateToken(token: string): Promise<boolean> {
+    // TODO: Implement actual JWT validation
+    return token === 'valid-token';
+  }
+  
+  /**
+   * Send acknowledgment message
+   */
+  private sendAck(client: ClientConnection, messageId: string, success: boolean): void {
+    client.send({
+      id: uuidv4(),
+      type: 'ack',
+      timestamp: Date.now(),
+      payload: { messageId, success }
+    } as AckMessage);
+  }
+  
+  /**
+   * Send error message
+   */
+  private sendError(client: ClientConnection, code: ErrorCode, message: string): void {
+    client.send({
+      id: uuidv4(),
+      type: 'agent:error',
+      timestamp: Date.now(),
+      payload: {
+        agentId: '',
+        error: { code: code.toString(), message }
+      }
+    });
+  }
+  
+  /**
+   * Broadcast message to all authenticated clients
+   */
+  private broadcast(message: WSMessage): void {
+    this.clients.forEach(client => {
+      if (client.isAuthenticated && client.ws.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+  
+  /**
+   * Start the WebSocket server
+   */
+  public start(): void {
+    this.httpServer.listen(this.port, () => {
+      console.log(`[WS] WebSocket server listening on port ${this.port}`);
+    });
+  }
+  
+  /**
+   * Stop the WebSocket server
+   */
+  public stop(): void {
+    this.wss.close();
+    this.httpServer.close();
+    this.clients.forEach(client => client.cleanup());
+    console.log('[WS] WebSocket server stopped');
+  }
+}
+
+// ============================================================================
+// Client Connection Class
+// ============================================================================
+
+class ClientConnection {
+  public isAuthenticated: boolean = false;
+  public userId?: string;
+  public sessionId?: string;
+  public subscriptions: Set<string> = new Set();
+  public heartbeatInterval?: NodeJS.Timeout;
+  private authTimeout?: NodeJS.Timeout;
+  
+  constructor(
+    public readonly id: string,
+    public readonly ws: WebSocket
+  ) {}
+  
+  /**
+   * Send message to client
+   */
+  send(message: WSMessage): void {
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    }
+  }
+  
+  /**
+   * Start authentication timeout
+   */
+  startAuthTimeout(callback: () => void, timeout: number = 5000): void {
+    this.authTimeout = setTimeout(callback, timeout);
+  }
+  
+  /**
+   * Clear authentication timeout
+   */
+  clearAuthTimeout(): void {
+    if (this.authTimeout) {
+      clearTimeout(this.authTimeout);
+      this.authTimeout = undefined;
+    }
+  }
+  
+  /**
+   * Clean up resources
+   */
+  cleanup(): void {
+    this.clearAuthTimeout();
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
+    this.subscriptions.clear();
+  }
+}
+
+// ============================================================================
+// Export and Start Server (if run directly)
+// ============================================================================
+
+if (require.main === module) {
+  const server = new DashboardWebSocketServer(3001);
+  server.start();
+  
+  // Handle graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('\n[WS] Shutting down...');
+    server.stop();
+    process.exit(0);
+  });
+}

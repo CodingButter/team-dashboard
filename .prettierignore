@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+build/
+out/
+.next/
+
+# Environment files
+.env*
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Coverage reports
+coverage/
+
+# Generated types
+*.d.ts
+
+# Cache directories
+.turbo/
+.cache/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

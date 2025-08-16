@@ -1,0 +1,461 @@
+/**
+ * Core Data Models for Team Dashboard
+ * Defines domain models for agent management, monitoring, and coordination
+ */
+
+import { AgentModel, AgentStatus, LogLevel, UserRole } from './api-contracts';
+
+// ============================================================================
+// Agent Connection Models
+// ============================================================================
+
+/**
+ * Represents a connected Claude Code agent instance
+ */
+export class AgentConnection {
+  public readonly id: string;
+  public readonly name: string;
+  public readonly model: AgentModel;
+  public status: AgentStatus;
+  public readonly workspace: string;
+  public readonly createdAt: Date;
+  public startedAt?: Date;
+  public stoppedAt?: Date;
+  public lastActivity?: Date;
+  
+  // Process information
+  public pid?: number;
+  public process?: any; // ChildProcess instance
+  
+  // WebSocket connection
+  public socketId?: string;
+  public isConnected: boolean = false;
+  
+  // Resource tracking
+  public resourceLimits?: {
+    memory: number;
+    cpu: number;
+  };
+  
+  public currentResources?: {
+    cpu: number;
+    memory: number;
+    threads: number;
+  };
+  
+  // Session data
+  public sessionData: Map<string, any> = new Map();
+  public commandHistory: CommandHistoryEntry[] = [];
+  public outputBuffer: OutputBuffer;
+  
+  constructor(params: {
+    id: string;
+    name: string;
+    model: AgentModel;
+    workspace: string;
+    resourceLimits?: { memory: number; cpu: number };
+  }) {
+    this.id = params.id;
+    this.name = params.name;
+    this.model = params.model;
+    this.workspace = params.workspace;
+    this.status = 'starting';
+    this.createdAt = new Date();
+    this.resourceLimits = params.resourceLimits;
+    this.outputBuffer = new OutputBuffer(params.id);
+  }
+  
+  /**
+   * Update agent status and track state transitions
+   */
+  updateStatus(newStatus: AgentStatus): void {
+    this.status = newStatus;
+    
+    if (newStatus === 'running' && !this.startedAt) {
+      this.startedAt = new Date();
+    } else if (newStatus === 'stopped' || newStatus === 'crashed') {
+      this.stoppedAt = new Date();
+      this.isConnected = false;
+    }
+    
+    this.lastActivity = new Date();
+  }
+  
+  /**
+   * Add command to history
+   */
+  addCommand(command: string, response?: string): void {
+    this.commandHistory.push({
+      command,
+      response,
+      timestamp: new Date(),
+      executionTime: 0
+    });
+    this.lastActivity = new Date();
+  }
+  
+  /**
+   * Get uptime in seconds
+   */
+  getUptime(): number {
+    if (!this.startedAt) return 0;
+    const endTime = this.stoppedAt || new Date();
+    return Math.floor((endTime.getTime() - this.startedAt.getTime()) / 1000);
+  }
+}
+
+/**
+ * Command history entry for an agent
+ */
+export interface CommandHistoryEntry {
+  command: string;
+  response?: string;
+  timestamp: Date;
+  executionTime: number;
+  exitCode?: number;
+  error?: string;
+}
+
+/**
+ * Circular buffer for agent output
+ */
+export class OutputBuffer {
+  private readonly maxSize: number = 10000; // lines
+  private buffer: OutputLine[] = [];
+  private sequence: number = 0;
+  
+  constructor(public readonly agentId: string) {}
+  
+  /**
+   * Add output line to buffer
+   */
+  addLine(stream: 'stdout' | 'stderr', data: string): void {
+    const lines = data.split('\n');
+    
+    for (const line of lines) {
+      if (line) {
+        this.buffer.push({
+          sequence: this.sequence++,
+          stream,
+          data: line,
+          timestamp: new Date()
+        });
+        
+        // Maintain circular buffer size
+        if (this.buffer.length > this.maxSize) {
+          this.buffer.shift();
+        }
+      }
+    }
+  }
+  
+  /**
+   * Get recent output lines
+   */
+  getRecent(count: number = 100): OutputLine[] {
+    return this.buffer.slice(-count);
+  }
+  
+  /**
+   * Get output since sequence number
+   */
+  getSince(sequence: number): OutputLine[] {
+    return this.buffer.filter(line => line.sequence > sequence);
+  }
+  
+  /**
+   * Clear buffer
+   */
+  clear(): void {
+    this.buffer = [];
+    this.sequence = 0;
+  }
+}
+
+export interface OutputLine {
+  sequence: number;
+  stream: 'stdout' | 'stderr';
+  data: string;
+  timestamp: Date;
+}
+
+// ============================================================================
+// System Monitoring Models
+// ============================================================================
+
+/**
+ * System resource snapshot
+ */
+export class SystemSnapshot {
+  public readonly timestamp: Date;
+  public readonly cpu: CpuMetrics;
+  public readonly memory: MemoryMetrics;
+  public readonly disk: DiskMetrics[];
+  public readonly network: NetworkMetrics[];
+  public readonly processes: ProcessMetrics;
+  
+  constructor(data: any) {
+    this.timestamp = new Date();
+    this.cpu = new CpuMetrics(data.cpu);
+    this.memory = new MemoryMetrics(data.memory);
+    this.disk = data.disk?.map((d: any) => new DiskMetrics(d)) || [];
+    this.network = data.network?.map((n: any) => new NetworkMetrics(n)) || [];
+    this.processes = new ProcessMetrics(data.processes);
+  }
+  
+  /**
+   * Check if any resource exceeds threshold
+   */
+  checkThresholds(thresholds: ResourceThresholds): Alert[] {
+    const alerts: Alert[] = [];
+    
+    if (this.cpu.usage > thresholds.cpuPercent) {
+      alerts.push(new Alert('cpu', 'warning', `CPU usage ${this.cpu.usage}% exceeds threshold`));
+    }
+    
+    if (this.memory.percent > thresholds.memoryPercent) {
+      alerts.push(new Alert('memory', 'warning', `Memory usage ${this.memory.percent}% exceeds threshold`));
+    }
+    
+    for (const disk of this.disk) {
+      if (disk.percent > thresholds.diskPercent) {
+        alerts.push(new Alert('disk', 'warning', `Disk ${disk.mountPoint} ${disk.percent}% full`));
+      }
+    }
+    
+    return alerts;
+  }
+}
+
+export class CpuMetrics {
+  public usage: number;
+  public cores: number;
+  public loadAverage: [number, number, number];
+  public temperature?: number;
+  
+  constructor(data: any) {
+    this.usage = data.usage || 0;
+    this.cores = data.cores || 1;
+    this.loadAverage = data.loadAverage || [0, 0, 0];
+    this.temperature = data.temperature;
+  }
+}
+
+export class MemoryMetrics {
+  public total: number;
+  public used: number;
+  public free: number;
+  public available: number;
+  public percent: number;
+  public swap?: {
+    total: number;
+    used: number;
+    percent: number;
+  };
+  
+  constructor(data: any) {
+    this.total = data.total || 0;
+    this.used = data.used || 0;
+    this.free = data.free || 0;
+    this.available = data.available || 0;
+    this.percent = data.percent || 0;
+    this.swap = data.swap;
+  }
+}
+
+export class DiskMetrics {
+  public device: string;
+  public mountPoint: string;
+  public total: number;
+  public used: number;
+  public free: number;
+  public percent: number;
+  
+  constructor(data: any) {
+    this.device = data.device || '';
+    this.mountPoint = data.mountPoint || '';
+    this.total = data.total || 0;
+    this.used = data.used || 0;
+    this.free = data.free || 0;
+    this.percent = data.percent || 0;
+  }
+}
+
+export class NetworkMetrics {
+  public interface: string;
+  public bytesIn: number;
+  public bytesOut: number;
+  public packetsIn: number;
+  public packetsOut: number;
+  public errorsIn: number;
+  public errorsOut: number;
+  
+  constructor(data: any) {
+    this.interface = data.interface || '';
+    this.bytesIn = data.bytesIn || 0;
+    this.bytesOut = data.bytesOut || 0;
+    this.packetsIn = data.packetsIn || 0;
+    this.packetsOut = data.packetsOut || 0;
+    this.errorsIn = data.errorsIn || 0;
+    this.errorsOut = data.errorsOut || 0;
+  }
+}
+
+export class ProcessMetrics {
+  public total: number;
+  public running: number;
+  public sleeping: number;
+  public stopped: number;
+  public zombie: number;
+  
+  constructor(data: any) {
+    this.total = data.total || 0;
+    this.running = data.running || 0;
+    this.sleeping = data.sleeping || 0;
+    this.stopped = data.stopped || 0;
+    this.zombie = data.zombie || 0;
+  }
+}
+
+// ============================================================================
+// Alert & Threshold Models
+// ============================================================================
+
+export class Alert {
+  public readonly id: string;
+  public readonly type: 'cpu' | 'memory' | 'disk' | 'network' | 'agent' | 'system';
+  public readonly severity: 'info' | 'warning' | 'error' | 'critical';
+  public readonly message: string;
+  public readonly timestamp: Date;
+  public acknowledged: boolean = false;
+  public resolved: boolean = false;
+  
+  constructor(type: Alert['type'], severity: Alert['severity'], message: string) {
+    this.id = generateId();
+    this.type = type;
+    this.severity = severity;
+    this.message = message;
+    this.timestamp = new Date();
+  }
+  
+  acknowledge(_userId: string): void {
+    this.acknowledged = true;
+  }
+  
+  resolve(): void {
+    this.resolved = true;
+  }
+}
+
+export interface ResourceThresholds {
+  cpuPercent: number;
+  memoryPercent: number;
+  diskPercent: number;
+  networkErrorRate: number;
+}
+
+// ============================================================================
+// Session & State Management
+// ============================================================================
+
+/**
+ * Dashboard session state
+ */
+export class DashboardSession {
+  public readonly id: string;
+  public readonly userId: string;
+  public readonly createdAt: Date;
+  public lastActivity: Date;
+  public agents: Map<string, AgentConnection> = new Map();
+  public subscriptions: Set<string> = new Set();
+  public preferences: UserPreferences;
+  
+  constructor(userId: string, preferences?: Partial<UserPreferences>) {
+    this.id = generateId();
+    this.userId = userId;
+    this.createdAt = new Date();
+    this.lastActivity = new Date();
+    this.preferences = {
+      theme: 'dark',
+      terminalFont: 'monospace',
+      terminalFontSize: 14,
+      shortcuts: defaultShortcuts(),
+      defaultWorkspace: '/workspace',
+      autoSaveSession: true,
+      ...preferences
+    };
+  }
+  
+  /**
+   * Add agent to session
+   */
+  addAgent(agent: AgentConnection): void {
+    this.agents.set(agent.id, agent);
+    this.lastActivity = new Date();
+  }
+  
+  /**
+   * Remove agent from session
+   */
+  removeAgent(agentId: string): void {
+    this.agents.delete(agentId);
+    this.lastActivity = new Date();
+  }
+  
+  /**
+   * Export session state for persistence
+   */
+  export(): any {
+    return {
+      id: this.id,
+      userId: this.userId,
+      createdAt: this.createdAt.toISOString(),
+      agents: Array.from(this.agents.values()).map(a => ({
+        id: a.id,
+        name: a.name,
+        model: a.model,
+        workspace: a.workspace,
+        status: a.status
+      })),
+      subscriptions: Array.from(this.subscriptions),
+      preferences: this.preferences
+    };
+  }
+}
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'system';
+  terminalFont: string;
+  terminalFontSize: number;
+  shortcuts: Record<string, string>;
+  defaultWorkspace: string;
+  autoSaveSession: boolean;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function defaultShortcuts(): Record<string, string> {
+  return {
+    'escape': 'agent:stop',
+    'ctrl+c': 'agent:interrupt',
+    'ctrl+l': 'terminal:clear',
+    'ctrl+tab': 'agent:next',
+    'ctrl+shift+tab': 'agent:previous',
+    'ctrl+n': 'agent:create',
+    'ctrl+w': 'agent:close',
+    'ctrl+s': 'session:save',
+    'ctrl+r': 'session:restore'
+  };
+}
+
+// ============================================================================
+// Export Types
+// ============================================================================
+
+export type { AgentModel, AgentStatus, LogLevel, UserRole };

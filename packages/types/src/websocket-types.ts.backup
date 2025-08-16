@@ -1,0 +1,289 @@
+/**
+ * WebSocket Message Type Definitions
+ * Extracted from websocket-protocol.md for type-safe implementation
+ */
+
+import { AgentModel, AgentStatus } from './api-contracts';
+
+// ============================================================================
+// Base Message Structure
+// ============================================================================
+
+export interface WSMessage<T = any> {
+  id: string;           // Unique message ID (UUID v4)
+  type: MessageType;    // Message type identifier
+  timestamp: number;    // Unix timestamp in milliseconds
+  payload: T;          // Type-specific payload
+  metadata?: {
+    correlationId?: string;  // For request/response correlation
+    agentId?: string;       // Associated agent ID
+    priority?: 'low' | 'normal' | 'high';
+  };
+}
+
+export type MessageType = 
+  // Client to Server
+  | 'auth'
+  | 'agent:create'
+  | 'agent:command'
+  | 'agent:terminate'
+  | 'agent:pause'
+  | 'agent:resume'
+  | 'subscribe:agent'
+  | 'subscribe:metrics'
+  | 'subscribe:logs'
+  | 'unsubscribe'
+  // Server to Client
+  | 'agent:status'
+  | 'agent:output'
+  | 'agent:created'
+  | 'agent:error'
+  | 'metrics:update'
+  | 'system:alert'
+  | 'ack'
+  | 'ping'
+  | 'pong';
+
+// ============================================================================
+// Client to Server Messages
+// ============================================================================
+
+export interface AuthMessage extends WSMessage {
+  type: 'auth';
+  payload: {
+    token: string;
+    clientId: string;
+  };
+}
+
+export interface CreateAgentMessage extends WSMessage {
+  type: 'agent:create';
+  payload: {
+    name: string;
+    model: AgentModel;
+    workspace: string;
+    environment?: Record<string, string>;
+    resourceLimits?: {
+      memory: number;
+      cpu: number;
+    };
+  };
+}
+
+export interface AgentCommandMessage extends WSMessage {
+  type: 'agent:command';
+  payload: {
+    agentId: string;
+    command: string;
+    interactive?: boolean;
+    timeout?: number;
+  };
+}
+
+export interface TerminateAgentMessage extends WSMessage {
+  type: 'agent:terminate';
+  payload: {
+    agentId: string;
+    force?: boolean;
+  };
+}
+
+export interface AgentControlMessage extends WSMessage {
+  type: 'agent:pause' | 'agent:resume';
+  payload: {
+    agentId: string;
+  };
+}
+
+export interface SubscribeMessage extends WSMessage {
+  type: 'subscribe:agent' | 'subscribe:metrics' | 'subscribe:logs';
+  payload: {
+    agentId?: string;
+    filters?: string[];
+  };
+}
+
+export interface UnsubscribeMessage extends WSMessage {
+  type: 'unsubscribe';
+  payload: {
+    subscriptionId: string;
+  };
+}
+
+// ============================================================================
+// Server to Client Messages
+// ============================================================================
+
+export interface AgentStatusMessage extends WSMessage {
+  type: 'agent:status';
+  payload: {
+    agentId: string;
+    status: AgentStatus;
+    details?: {
+      pid?: number;
+      uptime?: number;
+      lastActivity?: number;
+    };
+  };
+}
+
+export interface AgentOutputMessage extends WSMessage {
+  type: 'agent:output';
+  payload: {
+    agentId: string;
+    stream: 'stdout' | 'stderr';
+    data: string;
+    timestamp: number;
+    sequence: number;
+  };
+}
+
+export interface AgentCreatedMessage extends WSMessage {
+  type: 'agent:created';
+  payload: {
+    agentId: string;
+    name: string;
+    pid: number;
+    startTime: number;
+  };
+}
+
+export interface AgentErrorMessage extends WSMessage {
+  type: 'agent:error';
+  payload: {
+    agentId: string;
+    error: {
+      code: string;
+      message: string;
+      stack?: string;
+    };
+  };
+}
+
+export interface MetricsUpdateMessage extends WSMessage {
+  type: 'metrics:update';
+  payload: {
+    system: {
+      cpu: {
+        usage: number;
+        cores: number;
+        temperature?: number;
+      };
+      memory: {
+        total: number;
+        used: number;
+        available: number;
+        percent: number;
+      };
+      disk: {
+        total: number;
+        used: number;
+        percent: number;
+      };
+      network: {
+        bytesIn: number;
+        bytesOut: number;
+        packetsIn: number;
+        packetsOut: number;
+      };
+    };
+    agents?: Array<{
+      agentId: string;
+      cpu: number;
+      memory: number;
+      threads: number;
+    }>;
+  };
+}
+
+export interface SystemAlertMessage extends WSMessage {
+  type: 'system:alert';
+  payload: {
+    level: 'info' | 'warning' | 'error' | 'critical';
+    category: 'resource' | 'performance' | 'security' | 'agent';
+    message: string;
+    details?: any;
+  };
+}
+
+export interface AckMessage extends WSMessage {
+  type: 'ack';
+  payload: {
+    messageId: string;
+    success: boolean;
+    error?: string;
+  };
+}
+
+export interface HeartbeatMessage extends WSMessage {
+  type: 'ping' | 'pong';
+  payload: {
+    timestamp: number;
+  };
+}
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+export function isAuthMessage(msg: WSMessage): msg is AuthMessage {
+  return msg.type === 'auth';
+}
+
+export function isAgentCommandMessage(msg: WSMessage): msg is AgentCommandMessage {
+  return msg.type === 'agent:command';
+}
+
+export function isAgentOutputMessage(msg: WSMessage): msg is AgentOutputMessage {
+  return msg.type === 'agent:output';
+}
+
+export function isMetricsUpdateMessage(msg: WSMessage): msg is MetricsUpdateMessage {
+  return msg.type === 'metrics:update';
+}
+
+// ============================================================================
+// Message Factory
+// ============================================================================
+
+export class MessageFactory {
+  static createAuth(token: string, clientId: string): AuthMessage {
+    return {
+      id: generateMessageId(),
+      type: 'auth',
+      timestamp: Date.now(),
+      payload: { token, clientId }
+    };
+  }
+  
+  static createAgentCommand(agentId: string, command: string): AgentCommandMessage {
+    return {
+      id: generateMessageId(),
+      type: 'agent:command',
+      timestamp: Date.now(),
+      payload: { agentId, command }
+    };
+  }
+  
+  static createSubscribe(type: 'agent' | 'metrics' | 'logs', agentId?: string): SubscribeMessage {
+    return {
+      id: generateMessageId(),
+      type: `subscribe:${type}` as any,
+      timestamp: Date.now(),
+      payload: { agentId }
+    };
+  }
+  
+  static createHeartbeat(): HeartbeatMessage {
+    return {
+      id: generateMessageId(),
+      type: 'ping',
+      timestamp: Date.now(),
+      payload: { timestamp: Date.now() }
+    };
+  }
+}
+
+function generateMessageId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}

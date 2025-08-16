@@ -1,0 +1,31 @@
+{
+  "name": "@team-dashboard/agent-manager",
+  "version": "0.1.0",
+  "description": "Agent management service with WebSocket server",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/websocket-server.ts",
+    "build": "tsc",
+    "start": "node dist/websocket-server.js",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@team-dashboard/types": "workspace:*",
+    "ws": "^8.16.0",
+    "uuid": "^9.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "node-pty": "^1.0.0",
+    "fastify": "^4.25.2"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "@types/uuid": "^9.0.7",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.1"
+  }
+}

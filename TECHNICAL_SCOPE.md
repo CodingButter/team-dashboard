@@ -195,7 +195,6 @@ POST   /api/graph/query           # Execute Cypher query
 'agent:output'      // Agent stdout/stderr
 'agent:status'      // Agent status change
 'metrics:update'    // Real-time metrics
-'graph:change'      // Neo4j graph update
 ```
 
 ## Security Implementation
@@ -266,7 +265,7 @@ services:
 
 ```bash
 # 1. Start infrastructure
-docker-compose up -d neo4j redis postgres
+docker-compose up -d redis postgres
 
 # 2. Install dependencies
 pnpm install

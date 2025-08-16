@@ -2,16 +2,16 @@
 
 ## Executive Summary
 
-A comprehensive web-based dashboard for managing multiple Claude Code instances, providing real-time system monitoring, Neo4j memory visualization, and enhanced team coordination capabilities. This system will revolutionize how we manage and coordinate our AI agent team.
+A comprehensive web-based dashboard for managing Claude Code instances with sequential workflow coordination, providing real-time system monitoring and enhanced team coordination capabilities. This system will revolutionize how we manage and coordinate our AI agent team.
 
 ## Project Vision
 
 Create a centralized command center that enables:
-- Real-time management of multiple Claude Code agent instances
+- Real-time management of Claude Code agent instances
 - Bidirectional communication with each agent through interactive frames
 - System resource monitoring and optimization
-- Visual exploration of semantic memory relationships
-- Enhanced team workflow coordination
+- Sequential workflow coordination and task handoffs
+- Enhanced team coordination capabilities
 
 ## Technical Architecture
 
@@ -20,24 +20,24 @@ Create a centralized command center that enables:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Frontend Dashboard                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  Agent   │  │  System  │  │  Neo4j   │  │ Workflow │  │
-│  │  Frames  │  │ Metrics  │  │   Graph  │  │  Manager │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
-└───────┼─────────────┼─────────────┼─────────────┼─────────┘
-        │             │             │             │
-    WebSocket     REST API      GraphQL      REST API
-        │             │             │             │
-┌───────┼─────────────┼─────────────┼─────────────┼─────────┐
-│       │         Backend Services Layer           │         │
-│  ┌────▼─────┐  ┌────▼─────┐  ┌────▼─────┐  ┌──▼──────┐  │
-│  │  Agent   │  │  System  │  │  Neo4j   │  │ GitHub  │  │
-│  │  Manager │  │  Monitor │  │  Bridge  │  │   API   │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └─────────┘  │
-└───────┼─────────────┼─────────────┼───────────────────────┘
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │  Agent   │  │  System  │  │ Workflow │  │
+│  │  Frames  │  │ Metrics  │  │  Manager │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
+└───────┼─────────────┼─────────────┼─────────┘
         │             │             │
-    Process       System API    Neo4j DB
-    Spawning      Monitoring    Connection
+    WebSocket     REST API      REST API
+        │             │             │
+┌───────┼─────────────┼─────────────┼─────────┐
+│       │         Backend Services Layer       │
+│  ┌────▼─────┐  ┌────▼─────┐  ┌──▼──────┐    │
+│  │  Agent   │  │  System  │  │ GitHub  │    │
+│  │  Manager │  │  Monitor │  │   API   │    │
+│  └────┬─────┘  └────┬─────┘  └─────────┘    │
+└───────┼─────────────┼───────────────────────┘
+        │             │
+    Process       System API
+    Spawning      Monitoring
 ```
 
 ### Technology Stack Recommendations
@@ -49,7 +49,6 @@ Create a centralized command center that enables:
 - **Styling**: Tailwind CSS v4 + shadcn/ui
 - **State Management**: Zustand + React Query
 - **WebSocket Client**: Socket.io-client
-- **Graph Visualization**: vis.js or Cytoscape.js
 - **Charts**: Recharts for metrics visualization
 - **Terminal Emulation**: xterm.js for agent interfaces
 
