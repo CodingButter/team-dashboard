@@ -12,6 +12,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: '🏠' },
     { name: 'Agents', href: '/agents', icon: '🤖' },
+    { name: 'Tool Approvals', href: '/approvals', icon: '✅' },
     { name: 'MCP Servers', href: '/mcp', icon: '🔌' },
     { name: 'System Monitor', href: '/system', icon: '📊' },
     { name: 'Settings', href: '/settings', icon: '⚙️' },

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Approval UI Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --muted: 210 40% 98%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --border: 214.3 31.8% 91.4%;
+            --card: 0 0% 100%;
+            --accent: 210 40% 98%;
+            --accent-foreground: 222.2 84% 4.9%;
+        }
+        
+        .dark {
+            --background: 222.2 84% 4.9%;
+            --foreground: 210 40% 98%;
+            --muted: 222.2 84% 4.9%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --border: 217.2 32.6% 17.5%;
+            --card: 222.2 84% 4.9%;
+            --accent: 217.2 32.6% 17.5%;
+            --accent-foreground: 210 40% 98%;
+        }
+        
+        .bg-background { background-color: hsl(var(--background)); }
+        .bg-card { background-color: hsl(var(--card)); }
+        .text-foreground { color: hsl(var(--foreground)); }
+        .text-muted-foreground { color: hsl(var(--muted-foreground)); }
+        .border-border { border-color: hsl(var(--border)); }
+        .bg-accent { background-color: hsl(var(--accent)); }
+    </style>
+</head>
+<body class="bg-background text-foreground">
+    <div class="min-h-screen p-8">
+        <div class="max-w-6xl mx-auto space-y-8">
+            <!-- Header -->
+            <div class="text-center">
+                <h1 class="text-3xl font-bold mb-4">Tool Approval Workflow UI Test</h1>
+                <p class="text-muted-foreground">Testing the tool approval interface components</p>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div class="bg-card border border-border rounded-lg p-4">
+                    <div class="text-2xl font-bold text-foreground">15</div>
+                    <div class="text-sm text-muted-foreground">Total Requests</div>
+                </div>
+                
+                <div class="bg-card border border-border rounded-lg p-4">
+                    <div class="text-2xl font-bold text-orange-400">3</div>
+                    <div class="text-sm text-muted-foreground">Pending</div>
+                </div>
+                
+                <div class="bg-card border border-border rounded-lg p-4">
+                    <div class="text-2xl font-bold text-green-400">10</div>
+                    <div class="text-sm text-muted-foreground">Approved</div>
+                </div>
+                
+                <div class="bg-card border border-border rounded-lg p-4">
+                    <div class="text-2xl font-bold text-red-400">2</div>
+                    <div class="text-sm text-muted-foreground">Denied</div>
+                </div>
+                
+                <div class="bg-card border border-border rounded-lg p-4">
+                    <div class="text-2xl font-bold text-blue-400">45s</div>
+                    <div class="text-sm text-muted-foreground">Avg Response</div>
+                </div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="bg-card border border-border rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold text-foreground">Tool Approval Queue (3)</h2>
+                    
+                    <div class="flex items-center space-x-4">
+                        <select class="px-3 py-2 bg-background border border-border rounded-md text-foreground" data-testid="risk-filter">
+                            <option value="all">All Risk Levels</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        
+                        <div class="flex items-center space-x-2 text-sm text-muted-foreground">
+                            <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                            <span>Live updates</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Actions Bar -->
+            <div class="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-4" data-testid="batch-actions">
+                <div class="flex items-center justify-between">
+                    <div class="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        2 requests selected
+                    </div>
+                    <button class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200" data-testid="clear-selection">
+                        Clear selection
+                    </button>
+                </div>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                            Batch Reasoning (Optional)
+                        </label>
+                        <textarea 
+                            class="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-800 rounded-md text-foreground"
+                            rows="2"
+                            placeholder="Reason for batch approval/denial..."
+                            data-testid="batch-reasoning"
+                        ></textarea>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors flex items-center space-x-2" data-testid="batch-approve">
+                            <span>✓</span>
+                            <span>Approve All (2)</span>
+                        </button>
+                        
+                        <button class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center space-x-2" data-testid="batch-deny">
+                            <span>✗</span>
+                            <span>Deny All (2)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tool Approval Request Cards -->
+            <div class="space-y-6">
+                <!-- Critical Risk Request -->
+                <div class="bg-card border border-border rounded-lg p-6 space-y-6" data-testid="approval-request-critical">
+                    <div class="flex items-start justify-between">
+                        <div class="space-y-2">
+                            <h3 class="text-lg font-semibold text-foreground">Tool Approval Required</h3>
+                            <div class="flex items-center space-x-4 text-sm text-muted-foreground">
+                                <span>Tool: <span class="font-mono text-foreground">git</span></span>
+                                <span>Agent: <span class="text-foreground">DevOps Specialist</span></span>
+                                <span>Requested: 2 minutes ago</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Assessment -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <h4 class="text-md font-medium text-foreground">Risk Assessment</h4>
+                            <div class="inline-flex items-center px-3 py-1 text-sm rounded-full border text-red-400 bg-red-400/10 border-red-400/20">
+                                <span class="mr-2">🔴</span>
+                                <span class="font-medium">CRITICAL RISK</span>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <div class="text-sm font-medium text-orange-400">Detected Patterns:</div>
+                                <ul class="space-y-1">
+                                    <li class="text-sm text-orange-300 flex items-start">
+                                        <span class="text-orange-400 mr-2">⚠️</span>
+                                        Force push to main branch
+                                    </li>
+                                    <li class="text-sm text-orange-300 flex items-start">
+                                        <span class="text-orange-400 mr-2">⚠️</span>
+                                        Production repository
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="text-md font-medium text-foreground">Context</h4>
+                            <div class="space-y-2">
+                                <div class="text-sm font-medium text-foreground">Agent Context:</div>
+                                <div class="text-sm text-muted-foreground bg-background border border-border rounded p-3">
+                                    Emergency hotfix deployment to production
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Command Details -->
+                    <div class="space-y-4">
+                        <h4 class="text-md font-medium text-foreground">Command Details</h4>
+                        <div class="bg-black border border-border rounded-md p-3 font-mono text-sm">
+                            <div class="text-green-400 mb-1">$ git</div>
+                            <div class="text-white whitespace-pre-wrap">push origin main --force</div>
+                        </div>
+                    </div>
+
+                    <!-- Reasoning -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-foreground">
+                            Approval Reasoning (Optional)
+                        </label>
+                        <textarea
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground"
+                            rows="3"
+                            placeholder="Explain why you're approving or denying this request..."
+                            data-testid="approval-reasoning"
+                        ></textarea>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center justify-between pt-4 border-t border-border">
+                        <div class="flex space-x-3">
+                            <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors flex items-center space-x-2" data-testid="approve-btn">
+                                <span>✓</span>
+                                <span>Approve</span>
+                            </button>
+                            
+                            <button class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center space-x-2" data-testid="deny-btn">
+                                <span>✗</span>
+                                <span>Deny</span>
+                            </button>
+                            
+                            <button class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors" data-testid="ignore-btn">
+                                Ignore
+                            </button>
+                        </div>
+                        
+                        <div class="text-xs text-muted-foreground">
+                            Request ID: req-003
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medium Risk Request -->
+                <div class="bg-card border border-border rounded-lg p-6 space-y-6" data-testid="approval-request-medium">
+                    <div class="flex items-start justify-between">
+                        <div class="space-y-2">
+                            <h3 class="text-lg font-semibold text-foreground">Tool Approval Required</h3>
+                            <div class="flex items-center space-x-4 text-sm text-muted-foreground">
+                                <span>Tool: <span class="font-mono text-foreground">bash</span></span>
+                                <span>Agent: <span class="text-foreground">Frontend Developer</span></span>
+                                <span>Requested: 5 minutes ago</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Assessment -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <h4 class="text-md font-medium text-foreground">Risk Assessment</h4>
+                            <div class="inline-flex items-center px-3 py-1 text-sm rounded-full border text-yellow-400 bg-yellow-400/10 border-yellow-400/20">
+                                <span class="mr-2">🟡</span>
+                                <span class="font-medium">MEDIUM RISK</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="text-md font-medium text-foreground">Context</h4>
+                            <div class="space-y-2">
+                                <div class="text-sm font-medium text-foreground">Agent Context:</div>
+                                <div class="text-sm text-muted-foreground bg-background border border-border rounded p-3">
+                                    Installing fresh dependencies after package.json changes
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Command Details -->
+                    <div class="space-y-4">
+                        <h4 class="text-md font-medium text-foreground">Command Details</h4>
+                        <div class="bg-black border border-border rounded-md p-3 font-mono text-sm">
+                            <div class="text-green-400 mb-1">$ bash</div>
+                            <div class="text-white whitespace-pre-wrap">rm -rf node_modules && npm install</div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center justify-between pt-4 border-t border-border">
+                        <div class="flex space-x-3">
+                            <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors flex items-center space-x-2">
+                                <span>✓</span>
+                                <span>Approve</span>
+                            </button>
+                            
+                            <button class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center space-x-2">
+                                <span>✗</span>
+                                <span>Deny</span>
+                            </button>
+                        </div>
+                        
+                        <div class="text-xs text-muted-foreground">
+                            Request ID: req-001
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-Approval Rules Section -->
+            <div class="bg-card border border-border rounded-lg p-6 space-y-4" data-testid="auto-approval-rules">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-foreground">Auto-Approval Rules</h2>
+                    <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors" data-testid="add-rule-btn">
+                        Add Rule
+                    </button>
+                </div>
+
+                <!-- Sample Rule -->
+                <div class="bg-card border border-border rounded-lg p-6">
+                    <div class="flex items-start justify-between">
+                        <div class="space-y-2 flex-1">
+                            <div class="flex items-center space-x-3">
+                                <h3 class="text-lg font-medium text-foreground">Safe File Operations</h3>
+                                <div class="px-2 py-1 text-xs rounded bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                    Enabled
+                                </div>
+                            </div>
+                            
+                            <p class="text-sm text-muted-foreground">Auto-approve low-risk file read/write operations</p>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                    <span class="font-medium text-foreground">Tools: </span>
+                                    <span class="text-muted-foreground">file_read, file_write</span>
+                                </div>
+                                
+                                <div>
+                                    <span class="font-medium text-foreground">Risk Levels: </span>
+                                    <span class="text-muted-foreground">low</span>
+                                </div>
+                                
+                                <div>
+                                    <span class="font-medium text-foreground">Action: </span>
+                                    <span class="text-green-400">Auto-approve</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2 ml-4">
+                            <button class="px-3 py-1 text-sm bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 rounded transition-colors" data-testid="disable-rule">
+                                Disable
+                            </button>
+                            
+                            <button class="px-3 py-1 text-sm bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 rounded transition-colors" data-testid="edit-rule">
+                                Edit
+                            </button>
+                            
+                            <button class="px-3 py-1 text-sm bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 rounded transition-colors" data-testid="delete-rule">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification Example -->
+            <div class="fixed top-4 right-4 space-y-2 max-w-sm" data-testid="notification-area">
+                <div class="border-2 border-red-400 bg-red-50 dark:bg-red-950/20 animate-pulse rounded-lg p-4 shadow-lg cursor-pointer">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">🔴</span>
+                            <span class="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                Tool Approval Required
+                            </span>
+                        </div>
+                        
+                        <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" data-testid="dismiss-notification">
+                            ✕
+                        </button>
+                    </div>
+
+                    <div class="space-y-1 text-sm">
+                        <div class="text-gray-800 dark:text-gray-200">
+                            <span class="font-medium">DevOps Specialist</span> wants to use
+                            <span class="font-mono bg-gray-200 dark:bg-gray-800 px-1 rounded">git</span>
+                        </div>
+                        
+                        <div class="text-gray-600 dark:text-gray-400 text-xs">
+                            CRITICAL risk • 2m ago
+                        </div>
+                    </div>
+
+                    <div class="mt-3 text-xs text-gray-500 dark:text-gray-500">
+                        Click to review and approve
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple interaction handlers for testing
+        document.addEventListener('DOMContentLoaded', function() {
+            // Batch selection simulation
+            const clearSelection = document.querySelector('[data-testid="clear-selection"]');
+            const batchActions = document.querySelector('[data-testid="batch-actions"]');
+            
+            if (clearSelection && batchActions) {
+                clearSelection.addEventListener('click', function() {
+                    batchActions.style.display = 'none';
+                });
+            }
+
+            // Approval button handlers
+            const approveButtons = document.querySelectorAll('[data-testid="approve-btn"]');
+            approveButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const card = btn.closest('[data-testid^="approval-request"]');
+                    if (card) {
+                        card.style.opacity = '0.5';
+                        card.style.pointerEvents = 'none';
+                        btn.textContent = 'Processing...';
+                        btn.disabled = true;
+                    }
+                });
+            });
+
+            // Notification dismiss
+            const dismissBtn = document.querySelector('[data-testid="dismiss-notification"]');
+            const notification = document.querySelector('[data-testid="notification-area"]');
+            
+            if (dismissBtn && notification) {
+                dismissBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    notification.style.display = 'none';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
