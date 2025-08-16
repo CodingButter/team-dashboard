@@ -1,0 +1,87 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+*.pid
+*.seed
+*.pid.lock
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Monitoring
+prometheus-data/
+grafana-data/
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
