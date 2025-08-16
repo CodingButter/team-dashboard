@@ -64,17 +64,17 @@ export class McpService {
       server = {
         ...baseServer,
         transport: 'stdio',
-        command: serverData.config?.command || serverData.command || '',
-        args: serverData.config?.args || serverData.args || [],
-        workingDirectory: serverData.config?.workingDirectory || serverData.workingDirectory
+        command: serverData.config?.command || '',
+        args: serverData.config?.args || [],
+        workingDirectory: serverData.config?.workingDirectory
       } as McpStdioConfig;
     } else {
       server = {
         ...baseServer,
         transport: 'http+sse',
-        baseUrl: serverData.config?.baseUrl || serverData.baseUrl || '',
-        headers: serverData.config?.headers || serverData.headers,
-        authentication: serverData.config?.authentication || serverData.authentication
+        baseUrl: serverData.config?.baseUrl || '',
+        headers: serverData.config?.headers,
+        authentication: serverData.config?.authentication
       } as McpHttpConfig;
     }
 

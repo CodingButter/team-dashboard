@@ -11,7 +11,7 @@ export type AgentModel =
   | 'gpt-4o-mini'
   | 'gpt-4-turbo'
   | 'gpt-3.5-turbo';
-export type AgentStatus = 'starting' | 'running' | 'paused' | 'stopping' | 'stopped' | 'crashed';
+export type AgentStatus = 'starting' | 'running' | 'paused' | 'stopping' | 'stopped' | 'crashed' | 'ready' | 'spawned' | 'exited';
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error' | 'critical';
 export type UserRole = 'admin' | 'operator' | 'viewer';
 

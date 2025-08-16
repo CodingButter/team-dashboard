@@ -5,14 +5,16 @@
  */
 
 // Import the new modular server
-import { DashboardWebSocketServer } from './websocket';
+import { DashboardWebSocketServer } from './websocket/server.js';
 
 // Re-export for backward compatibility
-export { DashboardWebSocketServer } from './websocket';
+export { DashboardWebSocketServer } from './websocket/server.js';
 
 // Start server if run directly
-if (require.main === module) {
-  const server = new DashboardWebSocketServer(3001);
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
+  const port = parseInt(process.env.PORT || '3001');
+  const server = new DashboardWebSocketServer(port);
   server.start();
   
   // Handle graceful shutdown
