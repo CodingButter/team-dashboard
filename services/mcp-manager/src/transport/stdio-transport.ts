@@ -64,7 +64,7 @@ export class StdioTransport {
           reject(new Error(`Failed to start MCP server: ${error.message}`));
         });
 
-        this.process.on('exit', (code, signal) => {
+        this.process.on('exit', (_code, _signal) => {
           this.cleanup();
           if (this.options.onDisconnect) {
             this.options.onDisconnect();
@@ -125,7 +125,7 @@ export class StdioTransport {
     this.connected = false;
     
     // Reject all pending requests
-    for (const [id, { reject, timeout }] of this.pendingRequests) {
+    for (const [_id, { reject, timeout }] of this.pendingRequests) {
       clearTimeout(timeout);
       reject(new Error('Connection closed'));
     }

@@ -42,7 +42,7 @@ export class McpEncryption {
         throw new Error('Invalid encrypted data format');
       }
 
-      const iv = Buffer.from(parts[0], 'hex');
+      // const _iv = Buffer.from(parts[0], 'hex'); // IV not needed for createDecipher
       const encrypted = parts[1];
       
       const decipher = createDecipher(this.algorithm, this.key);
@@ -59,18 +59,20 @@ export class McpEncryption {
   /**
    * Encrypt environment variables that are marked as encrypted
    */
-  encryptEnvironmentVariables(variables: Array<{key: string; value: string; encrypted?: boolean}>): Array<{key: string; value: string; encrypted: boolean}> {
+  encryptEnvironmentVariables(variables: Array<{key: string; value: string; encrypted?: boolean; required?: boolean}>): Array<{key: string; value: string; encrypted: boolean; required: boolean}> {
     return variables.map(variable => {
       if (variable.encrypted && variable.value) {
         return {
           ...variable,
           value: this.encrypt(variable.value),
-          encrypted: true
+          encrypted: true,
+          required: variable.required ?? false
         };
       }
       return {
         ...variable,
-        encrypted: false
+        encrypted: false,
+        required: variable.required ?? false
       };
     });
   }
@@ -78,7 +80,7 @@ export class McpEncryption {
   /**
    * Decrypt environment variables for runtime use
    */
-  decryptEnvironmentVariables(variables: Array<{key: string; value: string; encrypted: boolean}>): Record<string, string> {
+  decryptEnvironmentVariables(variables: Array<{key: string; value: string; encrypted: boolean; required?: boolean}>): Record<string, string> {
     const env: Record<string, string> = {};
     
     for (const variable of variables) {
