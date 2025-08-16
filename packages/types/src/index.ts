@@ -14,7 +14,17 @@ export type { CommandHistoryEntry, OutputLine } from './models/agent-connection'
 export { DashboardSession } from './models/session-management';
 
 // Export agent process types
-export type { AgentSpawnConfig, AgentProcess, ResourceUsage, PtyOptions } from './agent-process';
+export type { 
+  AgentSpawnConfig, 
+  AgentProcess, 
+  ResourceUsage, 
+  PtyOptions,
+  ResourceLimits,
+  HealthCheckConfig,
+  AgentHealthStatus,
+  HealthCheck,
+  AgentProcessEventData
+} from './agent-process';
 
 // Export essential API types
 export type { AgentModel, AgentStatus, LogLevel, UserRole } from './api/common';

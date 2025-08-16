@@ -10,7 +10,7 @@ export async function statusRoutes(fastify: FastifyInstance) {
   const mcpService = fastify.mcpService as McpService
 
   // Get status for all servers
-  fastify.get('/status', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/status', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const servers = await mcpService.getAllServers()
       const statuses = await Promise.all(
@@ -51,7 +51,7 @@ export async function statusRoutes(fastify: FastifyInstance) {
   })
 
   // Get comprehensive status overview
-  fastify.get('/overview', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/overview', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const servers = await mcpService.getAllServers()
       const statuses = await Promise.all(
@@ -95,7 +95,7 @@ export async function statusRoutes(fastify: FastifyInstance) {
   })
 
   // Get health metrics for monitoring
-  fastify.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/health', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const servers = await mcpService.getAllServers()
       const enabledServers = servers.filter(s => s.enabled)
