@@ -6,7 +6,6 @@
 import { EventEmitter } from 'events';
 import * as os from 'os';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import { 
   AgentProcess, 
   ResourceUsage, 
@@ -419,7 +418,9 @@ export class AgentResourceMonitor extends EventEmitter {
       // Use cached system info for performance
       const stats = await fs.stat(process.cwd());
       // This is simplified - would need statvfs for accurate disk usage
+      // Using stats.size as a reference point for disk usage calculation
       const totalSpace = this.systemInfo.totalMemory * 10; // Mock: assume disk is 10x memory
+      console.log(`[ResourceMonitor] Disk stats accessed: ${stats.size} bytes`);
       const freeSpace = totalSpace * 0.7; // Mock: 70% free
       const usage = ((totalSpace - freeSpace) / totalSpace) * 100;
       

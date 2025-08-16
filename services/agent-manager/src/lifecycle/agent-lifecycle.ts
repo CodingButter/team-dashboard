@@ -5,10 +5,7 @@
 
 import { EventEmitter } from 'events';
 import { 
-  AgentProcess, 
-  AgentSpawnConfig, 
   AgentStatus,
-  ResourceUsage,
   AgentProcessEventData 
 } from '@team-dashboard/types';
 
@@ -158,6 +155,8 @@ export class AgentLifecycleManager extends EventEmitter {
    * Handle agent failure with restart logic
    */
   private async handleAgentFailure(agentId: string, reason?: string): Promise<void> {
+    // Use the reason parameter for logging and state tracking
+    console.log(`[Lifecycle] Handling agent failure for ${agentId}, reason: ${reason || 'unknown'}`);
     const state = this.agents.get(agentId);
     if (!state || !this.restartPolicy.enabled) {
       return;
@@ -301,7 +300,7 @@ export class AgentLifecycleManager extends EventEmitter {
    */
   private isValidTransition(from: AgentStatus, to: AgentStatus): boolean {
     const validTransitions: Record<AgentStatus, AgentStatus[]> = {
-      'starting': ['idle', 'running', 'busy', 'error', 'crashed', 'terminated'],
+      'starting': ['idle', 'running', 'busy', 'ready', 'spawned', 'error', 'crashed', 'terminated'],
       'idle': ['busy', 'running', 'paused', 'stopping', 'error', 'crashed', 'terminated'],
       'busy': ['idle', 'running', 'paused', 'stopping', 'error', 'crashed', 'terminated'],
       'running': ['idle', 'busy', 'paused', 'stopping', 'error', 'crashed', 'terminated'],
@@ -310,7 +309,10 @@ export class AgentLifecycleManager extends EventEmitter {
       'stopped': ['starting', 'terminated'],
       'error': ['starting', 'terminated', 'crashed'],
       'crashed': ['starting', 'terminated'],
-      'terminated': [] // Terminal state
+      'terminated': [], // Terminal state
+      'ready': ['idle', 'busy', 'running', 'spawned', 'error', 'crashed', 'terminated'],
+      'spawned': ['ready', 'idle', 'busy', 'running', 'error', 'crashed', 'terminated'],
+      'exited': ['terminated'] // Terminal transition to final state
     };
 
     return validTransitions[from]?.includes(to) || false;
