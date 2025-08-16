@@ -91,6 +91,21 @@ Always start infrastructure with `docker-compose up -d` before development.
 
 **MANDATORY**: ALL AGENTS MUST ALWAYS WORK IN THEIR ASSIGNED WORKTREES
 
+## CRITICAL: Branch Management Rules
+
+### NEVER COMMIT TO MAIN OR DEVELOPMENT BRANCHES
+1. **NEVER** commit directly to `main` branch - this is FORBIDDEN
+2. **NEVER** commit directly to `development` branch - this is FORBIDDEN  
+3. **ALWAYS** create a feature branch for your work
+4. **ALWAYS** work in your assigned worktree with your feature branch
+5. **ONLY** the Lead Developer merges PRs into development
+6. **ONLY** the Project Manager approves merges to main
+
+### Branch Naming Convention
+- Feature branches: `feature/{task-name}-{agent-name}`
+- Bug fix branches: `fix/{issue-number}-{description}`
+- Example: `feature/agent-lifecycle-performance-specialist`
+
 ### Worktree Configuration
 - **Base Path**: `/home/codingbutter/GitHub/team-dashboard-worktrees/`
 - **Naming Convention**: `agent-{agent-name}-{timestamp}`
