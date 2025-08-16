@@ -226,6 +226,10 @@ export class McpService {
         healthy = result.healthy;
         latency = result.latency;
         error = result.error;
+        
+        // Log connection stats for debugging
+        const stats = transport.getConnectionStats();
+        console.log(`Health check for ${id} - Stats:`, stats);
       } else {
         // For STDIO, check if process is alive
         healthy = transport.isConnected();
@@ -259,7 +263,17 @@ export class McpService {
     if (server.transport === 'stdio') {
       return new StdioTransport(server as McpStdioConfig, baseOptions);
     } else {
-      return new HttpTransport(server as McpHttpConfig, baseOptions);
+      // Enhanced HTTP+SSE transport options
+      const httpOptions = {
+        ...baseOptions,
+        reconnectInterval: server.retryDelay || 5000,
+        maxReconnectAttempts: server.retryAttempts || 3,
+        heartbeatInterval: 30000, // 30 second heartbeat
+        onMessage: (message: any) => this.handleTransportMessage(server.id, message),
+        onReconnect: () => this.handleTransportReconnect(server.id)
+      };
+      
+      return new HttpTransport(server as McpHttpConfig, httpOptions);
     }
   }
 
@@ -276,6 +290,30 @@ export class McpService {
     await this.updateServerStatus(serverId, {
       serverId,
       status: 'disconnected'
+    });
+  }
+  
+  private async handleTransportMessage(serverId: string, message: any): Promise<void> {
+    // Handle incoming SSE messages (notifications, events, etc.)
+    console.log(`Received message from server ${serverId}:`, message);
+    
+    // Update request count
+    const status = await this.storage.getServerStatus(serverId);
+    if (status) {
+      await this.updateServerStatus(serverId, {
+        requestCount: (status.requestCount || 0) + 1
+      });
+    }
+  }
+  
+  private async handleTransportReconnect(serverId: string): Promise<void> {
+    console.log(`Server ${serverId} reconnected via SSE`);
+    
+    await this.updateServerStatus(serverId, {
+      serverId,
+      status: 'connected',
+      lastConnected: new Date(),
+      lastError: undefined
     });
   }
 
@@ -305,6 +343,80 @@ export class McpService {
     }, config.mcp?.healthCheckInterval || 60000);
   }
 
+  // Enhanced transport management methods
+  async getServerConnectionStats(id: string): Promise<any> {
+    const transport = this.transports.get(id);
+    if (!transport) {
+      throw new Error(`Server not connected: ${id}`);
+    }
+    
+    if (transport instanceof HttpTransport) {
+      return transport.getConnectionStats();
+    }
+    
+    return {
+      connected: transport.isConnected(),
+      transport: 'stdio'
+    };
+  }
+  
+  async forceReconnectServer(id: string): Promise<void> {
+    const transport = this.transports.get(id);
+    if (!transport) {
+      throw new Error(`Server not connected: ${id}`);
+    }
+    
+    if (transport instanceof HttpTransport) {
+      await transport.forceReconnect();
+      console.log(`Forced reconnection for server ${id}`);
+    } else {
+      // For STDIO, disconnect and reconnect
+      await this.reconnectServer(id);
+    }
+  }
+  
+  async sendServerNotification(id: string, method: string, params?: any): Promise<void> {
+    const transport = this.transports.get(id);
+    if (!transport) {
+      throw new Error(`Server not connected: ${id}`);
+    }
+    
+    if (transport instanceof HttpTransport) {
+      await transport.sendNotification(method, params);
+    } else {
+      // STDIO transports would need sendNotification method implemented
+      throw new Error('Notifications not supported for STDIO transport');
+    }
+  }
+  
+  async sendServerRequest(id: string, method: string, params?: any): Promise<any> {
+    const transport = this.transports.get(id);
+    if (!transport) {
+      throw new Error(`Server not connected: ${id}`);
+    }
+    
+    return await transport.sendRequest(method, params);
+  }
+  
+  getConnectedServers(): { id: string; transport: string; stats?: any }[] {
+    const connected: { id: string; transport: string; stats?: any }[] = [];
+    
+    for (const [id, transport] of this.transports) {
+      const info: { id: string; transport: string; stats?: any } = {
+        id,
+        transport: transport instanceof HttpTransport ? 'http+sse' : 'stdio'
+      };
+      
+      if (transport instanceof HttpTransport) {
+        info.stats = transport.getConnectionStats();
+      }
+      
+      connected.push(info);
+    }
+    
+    return connected;
+  }
+  
   private generateId(): string {
     return `mcp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
