@@ -39,7 +39,7 @@ export type {
   MCPCredentials,
   ToolExecution,
   ToolApprovalRequest,
-  SystemPrompt,
+  SystemPrompt as MCPSystemPrompt,
   AgentConfiguration
 } from './api/mcp';
 
@@ -51,3 +51,6 @@ export { ErrorCode, DashboardError } from './error-codes';
 
 // Export MCP types
 export * from './mcp';
+
+// Export Prompts types
+export * from './prompts';
