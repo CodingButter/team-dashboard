@@ -1,5 +1,7 @@
 # Team Management Dashboard
 
+![Coverage](https://img.shields.io/badge/coverage-42%25-red.svg)
+
 A comprehensive web-based dashboard for managing multiple Claude Code instances with real-time monitoring and visualization capabilities.
 
 ## Features
