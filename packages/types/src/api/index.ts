@@ -24,6 +24,7 @@ import { AuthApiEndpoints, SessionApiEndpoints } from './auth';
 import { TaskApiEndpoints } from './tasks';
 import { LogsApiEndpoints } from './logs';
 import { AlertsApiEndpoints } from './alerts';
+import { McpApiEndpoints } from '../mcp/api';
 
 // Combined API client interface
 export interface ApiEndpoints extends
@@ -34,7 +35,8 @@ export interface ApiEndpoints extends
   SessionApiEndpoints,
   TaskApiEndpoints,
   LogsApiEndpoints,
-  AlertsApiEndpoints {}
+  AlertsApiEndpoints,
+  McpApiEndpoints {}
 
 // Export type-safe API client interface
 export type ApiClient = ApiEndpoints;

@@ -19,8 +19,25 @@ export type { AgentSpawnConfig, AgentProcess, ResourceUsage, PtyOptions } from '
 // Export essential API types
 export type { AgentModel, AgentStatus, LogLevel, UserRole } from './api/common';
 
+// Export MCP types
+export type { 
+  MCPServer, 
+  MCPCapabilities, 
+  MCPTool, 
+  MCPResource, 
+  MCPPrompt, 
+  MCPCredentials,
+  ToolExecution,
+  ToolApprovalRequest,
+  SystemPrompt,
+  AgentConfiguration
+} from './api/mcp';
+
 // Export WebSocket types
 export * from './websocket';
 
 // Export error codes
 export { ErrorCode, DashboardError } from './error-codes';
+
+// Export MCP types
+export * from './mcp';
