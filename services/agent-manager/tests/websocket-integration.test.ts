@@ -10,7 +10,7 @@ import { MessageFactory } from '@team-dashboard/types';
 describe('WebSocket Integration', () => {
   let server: DashboardWebSocketServer;
   let client: WebSocket;
-  const TEST_PORT = 3002;
+  const TEST_PORT = 3099; // Use a different port for tests to avoid conflicts
   const WS_URL = `ws://localhost:${TEST_PORT}`;
   
   beforeAll(() => {
