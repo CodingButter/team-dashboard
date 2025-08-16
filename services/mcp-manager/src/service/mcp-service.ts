@@ -3,7 +3,7 @@
  * Core MCP server management service
  */
 
-import { McpServer, McpStdioConfig, McpHttpConfig, McpServerStatus, McpHealthCheck } from '@team-dashboard/types';
+import { McpServer, McpStdioConfig, McpHttpConfig, McpServerStatus, McpHealthCheck, CreateMcpServerRequest, UpdateMcpServerRequest } from '@team-dashboard/types';
 import { McpRedisStorage } from '../storage/redis-storage';
 import { McpEncryption } from '../security/encryption';
 import { StdioTransport } from '../transport/stdio-transport';
@@ -11,7 +11,7 @@ import { HttpTransport } from '../transport/http-transport';
 import { config } from '../config';
 
 export class McpService {
-  private storage: McpRedisStorage;
+  public storage: McpRedisStorage;
   private encryption: McpEncryption;
   private transports = new Map<string, StdioTransport | HttpTransport>();
   private healthCheckInterval?: NodeJS.Timeout;
@@ -32,7 +32,7 @@ export class McpService {
     }
     
     // Disconnect all transports
-    for (const [serverId, transport] of this.transports) {
+    for (const [_serverId, transport] of this.transports) {
       await transport.disconnect();
     }
     this.transports.clear();
@@ -41,23 +41,42 @@ export class McpService {
   }
 
   // Server configuration management
-  async createServer(serverData: Partial<McpServer>): Promise<McpServer> {
-    const server: McpServer = {
-      id: serverData.id || this.generateId(),
-      name: serverData.name!,
+  async createServer(serverData: CreateMcpServerRequest): Promise<McpServer> {
+    const baseServer = {
+      id: this.generateId(),
+      name: serverData.name,
       description: serverData.description,
-      transport: serverData.transport!,
+      transport: serverData.transport,
       enabled: serverData.enabled ?? true,
       autoConnect: serverData.autoConnect ?? false,
-      timeout: serverData.timeout ?? config.mcp.defaultTimeout,
-      retryAttempts: serverData.retryAttempts ?? config.mcp.maxRetries,
-      retryDelay: serverData.retryDelay ?? config.mcp.retryDelay,
+      timeout: serverData.config.timeout ?? config.mcp?.defaultTimeout ?? 30000,
+      retryAttempts: serverData.config.retryAttempts ?? config.mcp?.maxRetries ?? 3,
+      retryDelay: serverData.config.retryDelay ?? config.mcp?.retryDelay ?? 5000,
       environment: this.encryption.encryptEnvironmentVariables(serverData.environment || []),
       tags: serverData.tags || [],
       createdAt: new Date(),
-      updatedAt: new Date(),
-      ...serverData
-    } as McpServer;
+      updatedAt: new Date()
+    };
+
+    // Create the appropriate server type based on transport
+    let server: McpServer;
+    if (serverData.transport === 'stdio') {
+      server = {
+        ...baseServer,
+        transport: 'stdio',
+        command: serverData.config.command || '',
+        args: serverData.config.args || [],
+        workingDirectory: serverData.config.workingDirectory
+      } as McpStdioConfig;
+    } else {
+      server = {
+        ...baseServer,
+        transport: 'http+sse',
+        baseUrl: serverData.config.baseUrl || '',
+        headers: serverData.config.headers,
+        authentication: serverData.config.authentication
+      } as McpHttpConfig;
+    }
 
     await this.storage.saveServer(server);
     
@@ -68,15 +87,20 @@ export class McpService {
     return server;
   }
 
-  async updateServer(id: string, updates: Partial<McpServer>): Promise<McpServer> {
+  async updateServer(id: string, updates: UpdateMcpServerRequest): Promise<McpServer> {
     const existingServer = await this.storage.getServer(id);
     if (!existingServer) {
       throw new Error(`Server not found: ${id}`);
     }
 
+    // Create updated server with proper handling of config updates
     const updatedServer: McpServer = {
       ...existingServer,
-      ...updates,
+      name: updates.name ?? existingServer.name,
+      description: updates.description ?? existingServer.description,
+      enabled: updates.enabled ?? existingServer.enabled,
+      autoConnect: updates.autoConnect ?? existingServer.autoConnect,
+      tags: updates.tags ?? existingServer.tags,
       id: existingServer.id, // Prevent ID changes
       updatedAt: new Date(),
       environment: updates.environment 
@@ -84,10 +108,25 @@ export class McpService {
         : existingServer.environment
     };
 
+    // Handle config updates if provided
+    if (updates.config) {
+      if (existingServer.transport === 'stdio') {
+        const stdioServer = updatedServer as McpStdioConfig;
+        stdioServer.command = updates.config.command ?? stdioServer.command;
+        stdioServer.args = updates.config.args ?? stdioServer.args;
+        stdioServer.workingDirectory = updates.config.workingDirectory ?? stdioServer.workingDirectory;
+      } else if (existingServer.transport === 'http+sse') {
+        const httpServer = updatedServer as McpHttpConfig;
+        httpServer.baseUrl = updates.config.baseUrl ?? httpServer.baseUrl;
+        httpServer.headers = updates.config.headers ?? httpServer.headers;
+        httpServer.authentication = updates.config.authentication ?? httpServer.authentication;
+      }
+    }
+
     await this.storage.saveServer(updatedServer);
     
     // Reconnect if transport changed
-    if (this.transports.has(id) && (updates.transport || updates.environment)) {
+    if (this.transports.has(id) && (updates.config || updates.environment)) {
       await this.reconnectServer(id);
     }
     
@@ -263,7 +302,7 @@ export class McpService {
           console.error(`Health check failed for server ${serverId}:`, error);
         }
       }
-    }, config.mcp.healthCheckInterval);
+    }, config.mcp?.healthCheckInterval || 60000);
   }
 
   private generateId(): string {

@@ -17,6 +17,12 @@ vi.mock('../security/encryption', () => ({
   McpEncryption: vi.fn().mockImplementation(() => ({
     encrypt: vi.fn().mockImplementation((data) => `encrypted_${data}`),
     decrypt: vi.fn().mockImplementation((data) => data.replace('encrypted_', '')),
+    encryptEnvironmentVariables: vi.fn().mockImplementation((variables) => 
+      variables.map((v: any) => ({ ...v, encrypted: false, required: false }))
+    ),
+    decryptEnvironmentVariables: vi.fn().mockImplementation((variables) => 
+      variables.reduce((acc: any, v: any) => ({ ...acc, [v.key]: v.value }), {})
+    ),
   })),
 }))
 
@@ -91,11 +97,12 @@ describe('McpService', () => {
       const serverData = {
         name: 'Test Server',
         description: 'A test MCP server',
-        transport: {
-          type: 'stdio' as const,
+        transport: 'stdio' as const,
+        config: {
           command: 'node',
           args: ['test-server.js'],
         },
+        environment: []
       }
 
       const result = await service.createServer(serverData)
@@ -104,7 +111,7 @@ describe('McpService', () => {
         name: 'Test Server',
         description: 'A test MCP server',
         enabled: true,
-        transport: serverData.transport,
+        transport: 'stdio',
       })
       expect(result.id).toBeDefined()
       expect(result.createdAt).toBeDefined()
@@ -113,12 +120,16 @@ describe('McpService', () => {
     it('generates unique IDs for servers', async () => {
       const serverData1 = {
         name: 'Server 1',
-        transport: { type: 'stdio' as const, command: 'node', args: ['server1.js'] },
+        transport: 'stdio' as const,
+        config: { command: 'node', args: ['server1.js'] },
+        environment: []
       }
       
       const serverData2 = {
         name: 'Server 2', 
-        transport: { type: 'stdio' as const, command: 'node', args: ['server2.js'] },
+        transport: 'stdio' as const,
+        config: { command: 'node', args: ['server2.js'] },
+        environment: []
       }
 
       const server1 = await service.createServer(serverData1)
@@ -127,21 +138,25 @@ describe('McpService', () => {
       expect(server1.id).not.toBe(server2.id)
     })
 
-    it('uses provided ID when creating server', async () => {
+    it('auto-generates ID when creating server', async () => {
       const serverData = {
-        id: 'custom-server-id',
         name: 'Custom Server',
-        transport: { type: 'stdio' as const, command: 'node', args: ['custom.js'] },
+        transport: 'stdio' as const,
+        config: { command: 'node', args: ['custom.js'] },
+        environment: []
       }
 
       const result = await service.createServer(serverData)
-      expect(result.id).toBe('custom-server-id')
+      expect(result.id).toBeDefined()
+      expect(result.id).toBeTruthy()
     })
 
     it('defaults enabled to true when not specified', async () => {
       const serverData = {
         name: 'Default Enabled Server',
-        transport: { type: 'stdio' as const, command: 'node', args: ['default.js'] },
+        transport: 'stdio' as const,
+        config: { command: 'node', args: ['default.js'] },
+        environment: []
       }
 
       const result = await service.createServer(serverData)
@@ -152,7 +167,9 @@ describe('McpService', () => {
       const serverData = {
         name: 'Disabled Server',
         enabled: false,
-        transport: { type: 'stdio' as const, command: 'node', args: ['disabled.js'] },
+        transport: 'stdio' as const,
+        config: { command: 'node', args: ['disabled.js'] },
+        environment: []
       }
 
       const result = await service.createServer(serverData)

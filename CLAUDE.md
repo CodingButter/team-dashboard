@@ -94,3 +94,4 @@ Always start infrastructure with `docker-compose up -d` before development.
 - All inter-service communication uses secure protocols
 - Command injection prevention through input sanitization
 - Audit logging for all agent operations
+- You do not code. you are just the orchestrator, you only delegate

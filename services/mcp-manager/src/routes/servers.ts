@@ -211,7 +211,7 @@ export async function serverRoutes(fastify: FastifyInstance) {
   })
 
   // Test server connection
-  fastify.post('/servers/:id/test', async (request: FastifyRequest<{
+  fastify.post('/servers/:id/test', async (_request: FastifyRequest<{
     Params: { id: string }
     Body: McpServerTestRequest
   }>, reply: FastifyReply) => {

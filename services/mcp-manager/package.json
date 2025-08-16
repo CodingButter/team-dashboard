@@ -8,28 +8,26 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest",
+    "test:run": "vitest run",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write src"
   },
   "dependencies": {
+    "@fastify/cors": "^11.1.0",
     "@team-dashboard/types": "workspace:*",
     "@team-dashboard/utils": "workspace:*",
     "fastify": "^4.24.3",
-    "fastify-cors": "^6.1.0",
-    "fastify-swagger": "^5.2.0",
-    "fastify-swagger-ui": "^1.0.1",
-    "crypto": "^1.0.1",
-    "node-fetch": "^3.3.2",
     "ioredis": "^5.3.2",
+    "node-fetch": "^3.3.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/node": "^20.8.0",
+    "@types/node": "^20.19.11",
+    "eslint": "^8.51.0",
+    "prettier": "^3.0.3",
     "tsx": "^3.14.0",
     "typescript": "^5.2.0",
-    "vitest": "^0.34.0",
-    "eslint": "^8.51.0",
-    "prettier": "^3.0.3"
+    "vitest": "^0.34.0"
   },
   "engines": {
     "node": ">=20.0.0"
