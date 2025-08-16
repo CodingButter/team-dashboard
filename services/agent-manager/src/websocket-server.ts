@@ -13,7 +13,7 @@ export { DashboardWebSocketServer } from './websocket/server.js';
 // Start server if run directly
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  const port = parseInt(process.env.PORT || '3001');
+  const port = parseInt(process.env.WS_PORT || '3001');
   const server = new DashboardWebSocketServer(port);
   server.start();
   

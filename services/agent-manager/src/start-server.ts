@@ -6,7 +6,7 @@
 import { DashboardWebSocketServer } from './websocket';
 
 // Get port from environment or use default
-const port = parseInt(process.env.WS_PORT || '3002', 10);
+const port = parseInt(process.env.WS_PORT || '3001', 10);
 
 // Create and start server
 const server = new DashboardWebSocketServer(port);
