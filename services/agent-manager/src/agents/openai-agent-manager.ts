@@ -6,12 +6,21 @@
 import OpenAI from 'openai';
 import { EventEmitter } from 'events';
 import AgentSpawner from './agent-spawner.js';
-import { AgentSpawnConfig, AgentProcess } from '@team-dashboard/types';
+import { AgentSpawnConfig, AgentProcess, McpStdioConfig, McpEnvironmentVariable } from '@team-dashboard/types';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { spawn } from 'child_process';
 
 export interface OpenAIAgentConfig extends AgentSpawnConfig {
   openaiApiKey: string;
   openaiModel?: 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4-turbo' | 'gpt-3.5-turbo';
   systemPrompt?: string;
+  enableMemento?: boolean;
+  mementoConfig?: {
+    dbPath?: string;
+    maxEntities?: number;
+    maxRelations?: number;
+  };
 }
 
 export interface AgentCommunication {
@@ -30,6 +39,8 @@ export class OpenAIAgentManager extends EventEmitter {
   private openaiClients: Map<string, OpenAI> = new Map();
   private agentThreads: Map<string, string> = new Map();
   private communications: Map<string, AgentCommunication[]> = new Map();
+  private mcpClients: Map<string, Client> = new Map();
+  private mementoProcesses: Map<string, any> = new Map();
 
   constructor() {
     super();
@@ -42,6 +53,26 @@ export class OpenAIAgentManager extends EventEmitter {
    */
   async spawnAgent(config: OpenAIAgentConfig): Promise<AgentProcess> {
     console.log(`[OpenAIAgentManager] Spawning OpenAI agent: ${config.name}`);
+
+    // CRITICAL: Enforce worktree workspace requirement
+    if (!config.workspace || !config.workspace.includes('team-dashboard-worktrees')) {
+      const timestamp = Date.now();
+      const agentName = config.name.toLowerCase().replace(/\s+/g, '-');
+      config.workspace = `/home/codingbutter/GitHub/team-dashboard-worktrees/agent-${agentName}-${timestamp}`;
+      
+      console.warn(`[OpenAIAgentManager] ENFORCING WORKTREE: Setting workspace to ${config.workspace}`);
+      
+      // Create the worktree if it doesn't exist
+      const { execSync } = await import('child_process');
+      try {
+        execSync(`git worktree add ${config.workspace} -b feature/${agentName}-${timestamp}`, {
+          cwd: '/home/codingbutter/GitHub/team-dashboard'
+        });
+        console.log(`[OpenAIAgentManager] Created worktree at ${config.workspace}`);
+      } catch (error) {
+        console.error(`[OpenAIAgentManager] Failed to create worktree: ${error}`);
+      }
+    }
 
     // Validate OpenAI configuration
     if (!config.openaiApiKey) {
@@ -60,6 +91,12 @@ export class OpenAIAgentManager extends EventEmitter {
     // Create system prompt for Claude Code agent
     const systemPrompt = config.systemPrompt || this.getDefaultSystemPrompt(config);
 
+    // Initialize Memento MCP if enabled
+    let mementoTools: any[] = [];
+    if (config.enableMemento) {
+      mementoTools = await this.initializeMementoForAgent(config);
+    }
+
     // Spawn the underlying process
     const agentProcess = await this.spawner.spawn(config);
 
@@ -72,11 +109,25 @@ export class OpenAIAgentManager extends EventEmitter {
       console.warn(`[OpenAIAgentManager] Could not create thread for agent ${config.id}:`, error);
     }
 
+    // Prepare initial context with memento tools if available
+    const initialMessages: any[] = [
+      { role: 'system', content: systemPrompt }
+    ];
+
+    if (mementoTools.length > 0) {
+      initialMessages.push({
+        role: 'system',
+        content: 'You have access to Memento knowledge graph memory tools. Use them to store and retrieve context.'
+      });
+    }
+
+    initialMessages.push({
+      role: 'user',
+      content: `Agent ${config.name} initialized with ${mementoTools.length > 0 ? 'Memento memory' : 'no memory'}. Ready for tasks.`
+    });
+
     // Send initial system prompt
-    await this.sendMessage(config.id, [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Agent ${config.name} initialized. Ready for tasks.` }
-    ] as any);
+    await this.sendMessage(config.id, initialMessages as any);
 
     this.emit('agent:spawned', { agentId: config.id, threadId: this.agentThreads.get(config.id) });
 
@@ -106,12 +157,16 @@ export class OpenAIAgentManager extends EventEmitter {
     try {
       if (streamCallback) {
         // Streaming response
+        // Get memento tools if available
+        const mementoTools = this.getMementoToolsForAgent(agentId);
+        
         const stream = await client.chat.completions.create({
           model: 'gpt-4o-mini', // Default model for agent communication
           messages: messages as OpenAI.Chat.ChatCompletionMessage[],
           stream: true,
           max_tokens: 4000,
           temperature: 0.7,
+          ...(mementoTools.length > 0 && { tools: mementoTools, tool_choice: 'auto' })
         });
 
         let fullResponse = '';
@@ -129,11 +184,15 @@ export class OpenAIAgentManager extends EventEmitter {
         return fullResponse;
       } else {
         // Non-streaming response
+        // Get memento tools if available
+        const mementoTools = this.getMementoToolsForAgent(agentId);
+        
         const response = await client.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: messages as OpenAI.Chat.ChatCompletionMessage[],
           max_tokens: 4000,
           temperature: 0.7,
+          ...(mementoTools.length > 0 && { tools: mementoTools, tool_choice: 'auto' })
         });
 
         const content = response.choices[0]?.message?.content || '';
@@ -175,10 +234,15 @@ export class OpenAIAgentManager extends EventEmitter {
     // Terminate underlying process
     await this.spawner.kill(agentId);
 
+    // Cleanup Memento MCP if running
+    await this.cleanupMementoForAgent(agentId);
+
     // Cleanup OpenAI resources
     this.openaiClients.delete(agentId);
     this.agentThreads.delete(agentId);
     this.communications.delete(agentId);
+    this.mcpClients.delete(agentId);
+    this.mementoProcesses.delete(agentId);
 
     this.emit('agent:terminated', { agentId });
   }
@@ -257,6 +321,202 @@ Follow these guidelines:
 - Coordinate with other agents when needed
 
 Ready to assist with development tasks.`;
+  }
+
+  /**
+   * Initialize Memento MCP for an agent
+   */
+  private async initializeMementoForAgent(config: OpenAIAgentConfig): Promise<any[]> {
+    try {
+      console.log(`[OpenAIAgentManager] Initializing Memento for agent: ${config.id}`);
+      
+      // Create Memento server configuration
+      const mementoServerConfig = await this.createMementoServerConfig(config);
+      
+      // Start Memento MCP server process
+      const mementoProcess = spawn(
+        mementoServerConfig.command,
+        mementoServerConfig.args,
+        {
+          cwd: mementoServerConfig.workingDirectory,
+          env: this.buildEnvironment(mementoServerConfig.environment || []) as NodeJS.ProcessEnv
+        }
+      );
+      
+      // Create MCP client
+      const transport = new StdioClientTransport({
+        command: mementoServerConfig.command,
+        args: mementoServerConfig.args,
+        env: this.buildEnvironment(mementoServerConfig.environment || [])
+      });
+      
+      const mcpClient = new Client({
+        name: `agent-${config.id}`,
+        version: '1.0.0'
+      }, {
+        capabilities: {}
+      });
+      
+      await mcpClient.connect(transport);
+      
+      // Store references
+      this.mcpClients.set(config.id, mcpClient);
+      this.mementoProcesses.set(config.id, mementoProcess);
+      
+      // Return Memento tools for OpenAI
+      return this.getMementoTools();
+      
+    } catch (error) {
+      console.error(`[OpenAIAgentManager] Failed to initialize Memento for agent ${config.id}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Clean up Memento resources for an agent
+   */
+  private async cleanupMementoForAgent(agentId: string): Promise<void> {
+    try {
+      // Close MCP client
+      const mcpClient = this.mcpClients.get(agentId);
+      if (mcpClient) {
+        await mcpClient.close();
+      }
+      
+      // Terminate Memento process
+      const mementoProcess = this.mementoProcesses.get(agentId);
+      if (mementoProcess) {
+        mementoProcess.kill();
+      }
+      
+      console.log(`[OpenAIAgentManager] Cleaned up Memento for agent: ${agentId}`);
+    } catch (error) {
+      console.warn(`[OpenAIAgentManager] Error cleaning up Memento for agent ${agentId}:`, error);
+    }
+  }
+
+  /**
+   * Create Memento server configuration
+   */
+  private async createMementoServerConfig(config: OpenAIAgentConfig): Promise<McpStdioConfig> {
+    const dbPath = config.mementoConfig?.dbPath || `/tmp/memento/${config.id}`;
+    
+    return {
+      id: `memento_${config.id}`,
+      name: `Memento Memory for ${config.name}`,
+      description: 'Knowledge graph memory system',
+      transport: 'stdio',
+      command: 'npx',
+      args: [
+        '@gannonh/memento-mcp',
+        '--db-path', dbPath,
+        '--max-entities', String(config.mementoConfig?.maxEntities || 10000),
+        '--max-relations', String(config.mementoConfig?.maxRelations || 50000)
+      ],
+      workingDirectory: process.cwd(),
+      enabled: true,
+      autoConnect: true,
+      timeout: 30000,
+      retryAttempts: 3,
+      retryDelay: 5000,
+      environment: [
+        {
+          key: 'OPENAI_API_KEY',
+          value: config.openaiApiKey,
+          encrypted: true,
+          required: true
+        }
+      ],
+      tags: ['memory', 'memento', config.id],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+
+  /**
+   * Build environment variables from configuration
+   */
+  private buildEnvironment(envVars: McpEnvironmentVariable[]): Record<string, string> {
+    const env: Record<string, string> = { ...process.env } as Record<string, string>;
+    for (const envVar of envVars) {
+      env[envVar.key] = envVar.value;
+    }
+    return env;
+  }
+
+  /**
+   * Get Memento tools for OpenAI function calling
+   */
+  private getMementoTools(): any[] {
+    return [
+      {
+        type: 'function',
+        function: {
+          name: 'memento_create_entities',
+          description: 'Create entities in the knowledge graph memory',
+          parameters: {
+            type: 'object',
+            properties: {
+              entities: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    entityType: { type: 'string' },
+                    observations: {
+                      type: 'array',
+                      items: { type: 'string' }
+                    }
+                  },
+                  required: ['name', 'entityType', 'observations']
+                }
+              }
+            },
+            required: ['entities']
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'memento_search_nodes',
+          description: 'Search for nodes in the knowledge graph',
+          parameters: {
+            type: 'object',
+            properties: {
+              query: { type: 'string' }
+            },
+            required: ['query']
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'memento_semantic_search',
+          description: 'Perform semantic search in the knowledge graph',
+          parameters: {
+            type: 'object',
+            properties: {
+              query: { type: 'string' },
+              limit: { type: 'number' }
+            },
+            required: ['query']
+          }
+        }
+      }
+    ];
+  }
+
+  /**
+   * Get Memento tools for a specific agent
+   */
+  private getMementoToolsForAgent(agentId: string): any[] {
+    if (this.mcpClients.has(agentId)) {
+      return this.getMementoTools();
+    }
+    return [];
   }
 }
 

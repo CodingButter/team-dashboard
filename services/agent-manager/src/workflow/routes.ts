@@ -55,7 +55,7 @@ export async function registerWorkflowRoutes(fastify: FastifyInstance) {
   });
 
   // Get all workflows
-  fastify.get('/api/workflows', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/api/workflows', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const workflows = workflowStateMachine.getAllWorkflows();
       

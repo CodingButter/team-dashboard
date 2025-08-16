@@ -63,5 +63,9 @@
     "*.{json,md,yaml,yml}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "@gannonh/memento-mcp": "^0.3.9",
+    "@modelcontextprotocol/sdk": "^1.17.3"
   }
 }

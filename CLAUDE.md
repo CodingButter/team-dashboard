@@ -87,6 +87,48 @@ Always start infrastructure with `docker-compose up -d` before development.
 7. Use existing monitoring and alerting patterns for new features
 8. Agents use memento MCP for individual memory - no shared memory visualization needed
 
+## CRITICAL: Agent Worktree Requirements
+
+**MANDATORY**: ALL AGENTS MUST ALWAYS WORK IN THEIR ASSIGNED WORKTREES
+
+### Worktree Configuration
+- **Base Path**: `/home/codingbutter/GitHub/team-dashboard-worktrees/`
+- **Naming Convention**: `agent-{agent-name}-{timestamp}`
+- **Example**: `/home/codingbutter/GitHub/team-dashboard-worktrees/agent-frontend-expert-1755320488/`
+
+### Strict Rules for Agent Development
+1. **NEVER** work directly in the main repository at `/home/codingbutter/GitHub/team-dashboard`
+2. **ALWAYS** create a new worktree for each agent before starting work
+3. **ALWAYS** verify the agent is in their worktree by checking `pwd` first
+4. **ALWAYS** create branches from the worktree, not the main repo
+5. **ALWAYS** commit and push from within the worktree
+6. **NEVER** allow agents to cd into the main repository
+
+### Worktree Setup Commands
+```bash
+# Create new worktree for an agent
+git worktree add /home/codingbutter/GitHub/team-dashboard-worktrees/agent-{name}-{timestamp} -b feature/{task-name}
+
+# Verify worktree location
+cd /home/codingbutter/GitHub/team-dashboard-worktrees/agent-{name}-{timestamp}
+pwd  # Must show worktree path, NOT main repo
+
+# Work exclusively in this directory
+pnpm install
+# ... do all work here ...
+```
+
+### Agent Spawning Configuration
+When spawning agents via the WebSocket server or OpenAI agent manager:
+- **workspace** parameter MUST be set to a worktree path
+- **workspace** MUST NOT be `/home/codingbutter/GitHub/team-dashboard`
+- Validate workspace path contains `team-dashboard-worktrees` before spawning
+
+### Enforcement
+- Project Manager and Lead Developer must verify all agents are using worktrees
+- Any agent found working in the main repo must be immediately stopped and redeployed to a worktree
+- All PRs must originate from worktree branches, not the main repository
+
 ## Security Considerations
 
 - Agent processes run in isolated Docker containers with resource limits
