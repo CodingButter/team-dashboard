@@ -11,16 +11,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@team-dashboard/types": "workspace:*",
     "@team-dashboard/ui": "workspace:*",
     "@team-dashboard/utils": "workspace:*",
+    "@types/node-cron": "^3.0.11",
+    "@xterm/addon-fit": "^0.10.0",
+    "monaco-editor": "^0.52.2",
     "next": "^14.1.0",
+    "openai": "^5.12.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "socket.io-client": "^4.7.4",
-    "xterm": "^5.3.0",
-    "@xterm/addon-fit": "^0.10.0",
-    "vis-network": "^9.1.6"
+    "vis-network": "^9.1.6",
+    "xterm": "^5.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
