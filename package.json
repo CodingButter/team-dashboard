@@ -35,6 +35,7 @@
     "coverage:summary": "node scripts/coverage-summary.js",
     "validate": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test:run",
     "coverage:full": "pnpm run test:coverage && pnpm run coverage:badge",
+    "test:smoke": "node test/smoke/smoke-tests.js",
     "prepare": "husky install",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",

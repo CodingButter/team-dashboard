@@ -1,0 +1,43 @@
+# Node.js service dockerfile for agent-manager
+FROM node:20-alpine AS base
+RUN corepack enable
+WORKDIR /app
+
+# Dependencies stage
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY services/agent-manager/package.json ./services/agent-manager/
+COPY packages/ ./packages/
+RUN pnpm install --frozen-lockfile --production=false
+
+# Build stage
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN pnpm build --filter=@team-dashboard/agent-manager
+
+# Production stage
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nodejs
+
+# Install security updates
+RUN apk update && apk upgrade && apk add --no-cache curl
+
+COPY --from=builder --chown=nodejs:nodejs /app/services/agent-manager/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/services/agent-manager/package.json ./package.json
+COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+
+USER nodejs
+
+EXPOSE 3001
+ENV PORT=3001
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
+
+CMD ["node", "dist/start-server.js"]
