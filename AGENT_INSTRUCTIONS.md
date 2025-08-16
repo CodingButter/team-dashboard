@@ -1,21 +1,21 @@
-# Agent Mission: Issue #13
+# Agent Mission: Issue #7
 
-## Agent Type: frontend-expert
+## Agent Type: chrome-extension-specialist
 ## Priority: P0
-## Issue: Agent creation wizard UI
+## Issue: Conversation memory system
 
 ### Instructions:
-1. You are working on Issue #13
-2. Your worktree is at: /home/codingbutter/GitHub/team-dashboard-worktrees/agent-wizard-ui
-3. Your branch is: issue-13-agent-wizard-ui
+1. You are working on Issue #7
+2. Your worktree is at: /home/codingbutter/GitHub/team-dashboard-worktrees/conversation-memory
+3. Your branch is: issue-7-conversation-memory
 4. Work ONLY on this issue
 5. Create a PR when complete
 6. Do NOT touch other issues
 
 ### Commands to start:
 ```bash
-cd /home/codingbutter/GitHub/team-dashboard-worktrees/agent-wizard-ui
-gh issue view 13
+cd /home/codingbutter/GitHub/team-dashboard-worktrees/conversation-memory
+gh issue view 7
 # Start implementing the solution
 ```
 
@@ -23,4 +23,4 @@ gh issue view 13
 - Stay focused on your assigned issue
 - Test your changes thoroughly
 - Create clean, production-ready code
-- Submit PR referencing "Closes #13"
+- Submit PR referencing "Closes #7"
