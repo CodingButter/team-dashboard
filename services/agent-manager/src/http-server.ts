@@ -6,6 +6,7 @@
 import Fastify from 'fastify';
 import OpenAIAgentManager, { OpenAIAgentConfig } from './agents/openai-agent-manager.js';
 import { v4 as uuidv4 } from 'uuid';
+import { registerWorkflowRoutes } from './workflow/index.js';
 
 const fastify = Fastify({
   logger: {
@@ -26,6 +27,9 @@ const agentManager = new OpenAIAgentManager();
 fastify.register(require('@fastify/cors'), {
   origin: true
 });
+
+// Register workflow routes
+fastify.register(registerWorkflowRoutes);
 
 // Routes
 fastify.register(async function (fastify) {
@@ -234,6 +238,15 @@ const start = async () => {
     console.log('  POST   /agents/:id/command');
     console.log('  GET    /agents/:id/history');
     console.log('  DELETE /agents/:id');
+    console.log('\nWorkflow endpoints:');
+    console.log('  POST   /api/workflows');
+    console.log('  GET    /api/workflows');
+    console.log('  GET    /api/workflows/:id');
+    console.log('  GET    /api/workflows/:id/status');
+    console.log('  POST   /api/workflows/:id/tasks/:taskId/transition');
+    console.log('  POST   /api/workflows/:id/tasks/:taskId/assign');
+    console.log('  GET    /api/agents/:agentId/tasks');
+    console.log('  GET    /api/workflows/:id/transitions');
   } catch (error) {
     fastify.log.error(error);
     process.exit(1);
