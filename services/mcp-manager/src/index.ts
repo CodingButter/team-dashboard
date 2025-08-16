@@ -21,14 +21,18 @@ declare module 'fastify' {
 async function createServer() {
   // Create Fastify instance
   const fastify = Fastify({
-    logger: {
+    logger: config.logging.pretty ? {
       level: config.logging.level,
-      transport: config.logging.pretty ? {
-        target: 'pino-pretty',
+      transport: {
+        target: require.resolve('pino-pretty'),
         options: {
+          translateTime: 'HH:MM:ss Z',
+          ignore: 'pid,hostname',
           colorize: true
         }
-      } : undefined
+      }
+    } : {
+      level: config.logging.level
     }
   })
 

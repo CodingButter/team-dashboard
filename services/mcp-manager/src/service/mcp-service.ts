@@ -49,9 +49,9 @@ export class McpService {
       transport: serverData.transport,
       enabled: serverData.enabled ?? true,
       autoConnect: serverData.autoConnect ?? false,
-      timeout: serverData.config.timeout ?? config.mcp?.defaultTimeout ?? 30000,
-      retryAttempts: serverData.config.retryAttempts ?? config.mcp?.maxRetries ?? 3,
-      retryDelay: serverData.config.retryDelay ?? config.mcp?.retryDelay ?? 5000,
+      timeout: serverData.config?.timeout ?? config.mcp?.defaultTimeout ?? 30000,
+      retryAttempts: serverData.config?.retryAttempts ?? config.mcp?.maxRetries ?? 3,
+      retryDelay: serverData.config?.retryDelay ?? config.mcp?.retryDelay ?? 5000,
       environment: this.encryption.encryptEnvironmentVariables(serverData.environment || []),
       tags: serverData.tags || [],
       createdAt: new Date(),
@@ -64,17 +64,17 @@ export class McpService {
       server = {
         ...baseServer,
         transport: 'stdio',
-        command: serverData.config.command || '',
-        args: serverData.config.args || [],
-        workingDirectory: serverData.config.workingDirectory
+        command: serverData.config?.command || serverData.command || '',
+        args: serverData.config?.args || serverData.args || [],
+        workingDirectory: serverData.config?.workingDirectory || serverData.workingDirectory
       } as McpStdioConfig;
     } else {
       server = {
         ...baseServer,
         transport: 'http+sse',
-        baseUrl: serverData.config.baseUrl || '',
-        headers: serverData.config.headers,
-        authentication: serverData.config.authentication
+        baseUrl: serverData.config?.baseUrl || serverData.baseUrl || '',
+        headers: serverData.config?.headers || serverData.headers,
+        authentication: serverData.config?.authentication || serverData.authentication
       } as McpHttpConfig;
     }
 

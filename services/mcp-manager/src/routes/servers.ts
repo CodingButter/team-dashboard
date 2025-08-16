@@ -239,6 +239,50 @@ export async function serverRoutes(fastify: FastifyInstance) {
     }
   })
 
+  // Get server status
+  fastify.get('/servers/:id/status', async (request: FastifyRequest<{
+    Params: { id: string }
+  }>, reply: FastifyReply) => {
+    try {
+      const server = await mcpService.getServer(request.params.id)
+      
+      if (!server) {
+        return reply.code(404).send({
+          success: false,
+          error: 'Server not found'
+        })
+      }
+
+      const status = await mcpService.storage.getServerStatus(request.params.id)
+      
+      if (!status) {
+        // Return default disconnected status if no status is stored
+        return {
+          success: true,
+          data: {
+            serverId: request.params.id,
+            status: 'disconnected' as const,
+            uptime: 0,
+            requestCount: 0,
+            errorCount: 0,
+            lastChecked: new Date().toISOString()
+          }
+        }
+      }
+
+      return {
+        success: true,
+        data: status
+      }
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.code(500).send({
+        success: false,
+        error: 'Failed to retrieve server status'
+      })
+    }
+  })
+
   // Get server health
   fastify.get('/servers/:id/health', async (request: FastifyRequest<{
     Params: { id: string }
