@@ -42,7 +42,18 @@ export type MessageType =
   | 'system:alert'
   | 'ack'
   | 'ping'
-  | 'pong';
+  | 'pong'
+  // Inter-Agent Communication
+  | 'agent:message'
+  | 'agent:broadcast'
+  | 'agent:handoff'
+  | 'agent:handoff:accept'
+  | 'agent:handoff:reject'
+  | 'agent:handoff:initiated'
+  | 'agent:handoff:response'
+  | 'agent:task:request'
+  | 'agent:task:response'
+  | 'agent:event';
 
 // Export types for reuse
 export type { AgentModel, AgentStatus };

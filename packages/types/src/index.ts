@@ -51,3 +51,6 @@ export { ErrorCode, DashboardError } from './error-codes';
 
 // Export MCP types
 export * from './mcp';
+
+// Export communication types
+export * from './communication';
