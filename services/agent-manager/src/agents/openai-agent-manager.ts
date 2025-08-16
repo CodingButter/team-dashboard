@@ -54,24 +54,35 @@ export class OpenAIAgentManager extends EventEmitter {
   async spawnAgent(config: OpenAIAgentConfig): Promise<AgentProcess> {
     console.log(`[OpenAIAgentManager] Spawning OpenAI agent: ${config.name}`);
 
-    // CRITICAL: Enforce worktree workspace requirement
-    if (!config.workspace || !config.workspace.includes('team-dashboard-worktrees')) {
-      const timestamp = Date.now();
-      const agentName = config.name.toLowerCase().replace(/\s+/g, '-');
-      config.workspace = `/home/codingbutter/GitHub/team-dashboard-worktrees/agent-${agentName}-${timestamp}`;
+    // CRITICAL: ALWAYS CREATE FRESH WORKTREE - No reuse allowed
+    const timestamp = Date.now();
+    const agentName = config.name.toLowerCase().replace(/\s+/g, '-');
+    const freshWorkspace = `/home/codingbutter/GitHub/team-dashboard-worktrees/agent-${agentName}-${timestamp}`;
+    
+    console.log(`[OpenAIAgentManager] CREATING FRESH WORKTREE: ${freshWorkspace}`);
+    
+    // Always override workspace parameter to ensure fresh worktree
+    config.workspace = freshWorkspace;
+    
+    // Create the fresh worktree from development branch
+    const { execSync } = await import('child_process');
+    try {
+      execSync(`git worktree add ${config.workspace} -b feature/${agentName}-${timestamp} development`, {
+        cwd: '/home/codingbutter/GitHub/team-dashboard',
+        stdio: 'inherit'
+      });
+      console.log(`[OpenAIAgentManager] ✅ Created fresh worktree at ${config.workspace}`);
       
-      console.warn(`[OpenAIAgentManager] ENFORCING WORKTREE: Setting workspace to ${config.workspace}`);
+      // Install dependencies in fresh worktree
+      execSync(`pnpm install`, {
+        cwd: config.workspace,
+        stdio: 'inherit'
+      });
+      console.log(`[OpenAIAgentManager] ✅ Installed dependencies in fresh worktree`);
       
-      // Create the worktree if it doesn't exist
-      const { execSync } = await import('child_process');
-      try {
-        execSync(`git worktree add ${config.workspace} -b feature/${agentName}-${timestamp}`, {
-          cwd: '/home/codingbutter/GitHub/team-dashboard'
-        });
-        console.log(`[OpenAIAgentManager] Created worktree at ${config.workspace}`);
-      } catch (error) {
-        console.error(`[OpenAIAgentManager] Failed to create worktree: ${error}`);
-      }
+    } catch (error) {
+      console.error(`[OpenAIAgentManager] ❌ Failed to create fresh worktree: ${error}`);
+      throw new Error(`Failed to create fresh worktree for agent ${config.name}: ${error}`);
     }
 
     // Validate OpenAI configuration
