@@ -1,0 +1,52 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'dashboard'
+    static_configs:
+      - targets: ['dashboard:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'agent-manager'
+    static_configs:
+      - targets: ['agent-manager:3003']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'mcp-manager'
+    static_configs:
+      - targets: ['mcp-manager:3004']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'openai-service'
+    static_configs:
+      - targets: ['openai-service:3005']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+    scrape_interval: 15s

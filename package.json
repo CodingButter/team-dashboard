@@ -37,7 +37,12 @@
     "prepare": "husky install",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "dev:docker": "docker-compose -f docker-compose.dev.yml up -d --build",
+    "dev:docker:down": "docker-compose -f docker-compose.dev.yml down",
+    "dev:docker:logs": "docker-compose -f docker-compose.dev.yml logs -f",
+    "dev:start": "./scripts/dev-start.sh",
+    "dev:stop": "./scripts/dev-stop.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
