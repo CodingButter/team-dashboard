@@ -17,7 +17,6 @@ export class McpRedisStorage {
       password: config.redis.password,
       db: config.redis.db,
       keyPrefix: config.redis.keyPrefix,
-      retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
       lazyConnect: true
     });

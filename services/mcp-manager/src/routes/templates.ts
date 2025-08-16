@@ -74,7 +74,7 @@ export async function templateRoutes(fastify: FastifyInstance) {
   })
 
   // Get template categories
-  fastify.get('/categories', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/categories', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       return {
         success: true,
