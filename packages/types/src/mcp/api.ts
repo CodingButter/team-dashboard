@@ -3,9 +3,8 @@
  * MCP API contracts and request/response types
  */
 
-import { McpServer, McpServerStatus, McpHealthCheck } from './base';
-import { McpServerTemplate } from './templates';
-import { ApiResponse, PaginatedResponse } from '../api/common';
+import { McpServer, McpServerStatus, McpHealthCheck, McpServerTemplate } from './base';
+import { BaseApiResponse, PaginatedResponse } from '../api/common';
 
 /** Create MCP server request */
 export interface CreateMcpServerRequest {
@@ -66,32 +65,35 @@ export interface McpServerTestRequest {
 }
 
 /** MCP server health check response */
-export interface McpServerHealthResponse extends ApiResponse {
+export interface McpServerHealthResponse extends BaseApiResponse {
   data: McpHealthCheck;
 }
 
 /** MCP server list response */
-export interface McpServerListResponse extends PaginatedResponse<McpServer> {
+export interface McpServerListResponse extends PaginatedResponse {
+  data: McpServer[];
 }
 
 /** MCP server detail response */
-export interface McpServerDetailResponse extends ApiResponse<McpServer & {
+export interface McpServerDetailResponse extends BaseApiResponse {
+  data: McpServer & {
     status: McpServerStatus;
     health?: McpHealthCheck;
-}> {}
+  };
+}
 
 /** MCP server status response */
-export interface McpServerStatusResponse extends ApiResponse {
+export interface McpServerStatusResponse extends BaseApiResponse {
   data: McpServerStatus[];
 }
 
 /** MCP server templates response */
-export interface McpServerTemplatesResponse extends ApiResponse {
+export interface McpServerTemplatesResponse extends BaseApiResponse {
   data: McpServerTemplate[];
 }
 
 /** MCP server test connection response */
-export interface McpServerTestResponse extends ApiResponse {
+export interface McpServerTestResponse extends BaseApiResponse {
   data: {
     success: boolean;
     capabilities?: string[];
@@ -125,17 +127,17 @@ export interface McpApiEndpoints {
   };
   
   'DELETE /api/mcp/servers/:id': {
-    response: ApiResponse;
+    response: BaseApiResponse;
   };
 
   // Server operations
   'POST /api/mcp/servers/:id/connect': {
     body?: McpServerConnectionRequest;
-    response: ApiResponse;
+    response: BaseApiResponse;
   };
   
   'POST /api/mcp/servers/:id/disconnect': {
-    response: ApiResponse;
+    response: BaseApiResponse;
   };
   
   'POST /api/mcp/servers/:id/test': {

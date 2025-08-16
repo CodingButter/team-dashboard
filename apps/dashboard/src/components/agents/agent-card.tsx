@@ -1,13 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import dynamic from 'next/dynamic'
+import { AgentTerminal } from './agent-terminal'
 import { AgentModel, AgentStatus, AgentConfiguration } from '@team-dashboard/types'
-
-const AgentTerminal = dynamic(() => import('./agent-terminal').then(mod => ({ default: mod.AgentTerminal })), {
-  ssr: false,
-  loading: () => <div className="min-h-[300px] bg-gray-900 rounded-md flex items-center justify-center text-gray-400">Loading terminal...</div>
-})
 
 interface Agent {
   id: string
@@ -31,13 +26,9 @@ interface AgentCardProps {
   onResume?: (agentId: string) => void
   onEdit?: (agentId: string) => void
   onViewLogs?: (agentId: string) => void
-  onStart?: () => void
-  onStop?: () => void
-  onDelete?: () => void
-  onClick?: () => void
 }
 
-export function AgentCard({ agent, onCommand, onTerminate, onPause, onResume, onEdit, onViewLogs, onStart, onStop, onDelete, onClick }: AgentCardProps) {
+export function AgentCard({ agent, onCommand, onTerminate, onPause, onResume, onEdit, onViewLogs }: AgentCardProps) {
   const [showTerminal, setShowTerminal] = useState(false)
   const getStatusColor = (status: Agent['status']) => {
     switch (status) {
@@ -88,10 +79,7 @@ export function AgentCard({ agent, onCommand, onTerminate, onPause, onResume, on
   }
 
   return (
-    <div 
-      className="bg-card border border-border rounded-lg p-6 space-y-4 cursor-pointer hover:border-border/80 transition-colors" 
-      onClick={onClick}
-    >
+    <div className="bg-card border border-border rounded-lg p-6 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
@@ -172,31 +160,13 @@ export function AgentCard({ agent, onCommand, onTerminate, onPause, onResume, on
       {/* Actions */}
       <div className="flex items-center justify-between pt-4 border-t border-border">
         <div className="flex space-x-2">
-          {agent.status === 'stopped' && onStart && (
-            <button
-              onClick={onStart}
-              className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
-            >
-              Start
-            </button>
-          )}
           {agent.status === 'running' && (
-            <>
-              {onStop && (
-                <button
-                  onClick={onStop}
-                  className="px-3 py-1 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-md transition-colors"
-                >
-                  Stop
-                </button>
-              )}
-              <button
-                onClick={() => onPause?.(agent.id)}
-                className="px-3 py-1 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-md transition-colors"
-              >
-                Pause
-              </button>
-            </>
+            <button
+              onClick={() => onPause?.(agent.id)}
+              className="px-3 py-1 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-md transition-colors"
+            >
+              Pause
+            </button>
           )}
           {agent.status === 'paused' && (
             <button
@@ -222,21 +192,12 @@ export function AgentCard({ agent, onCommand, onTerminate, onPause, onResume, on
               Logs
             </button>
           )}
-          {onDelete ? (
-            <button
-              onClick={onDelete}
-              className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
-            >
-              Delete
-            </button>
-          ) : (
-            <button
-              onClick={() => onTerminate?.(agent.id)}
-              className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
-            >
-              Terminate
-            </button>
-          )}
+          <button
+            onClick={() => onTerminate?.(agent.id)}
+            className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+          >
+            Terminate
+          </button>
         </div>
         
         <div className="text-xs text-muted-foreground">

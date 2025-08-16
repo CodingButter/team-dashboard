@@ -3,7 +3,7 @@
  * Custom hooks for handling agent state and WebSocket operations
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useWebSocket } from '../../hooks/use-websocket'
 import { Agent, mockAgents } from './mock-data'
 
@@ -13,7 +13,7 @@ export function useAgentManagement() {
   const [isCreating, setIsCreating] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   
-  const { state } = useWebSocket()
+  const { connected, isConnecting, sendMessage } = useWebSocket()
 
   // Handle agent operations
   const createAgent = (config: { name: string; model: string; workspace: string }) => {
@@ -73,8 +73,8 @@ export function useAgentManagement() {
     selectedAgent,
     isCreating,
     showCreateModal,
-    connected: state.connected,
-    isConnecting: state.reconnecting,
+    connected,
+    isConnecting,
     setIsCreating,
     setShowCreateModal,
     createAgent,

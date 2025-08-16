@@ -1,4 +1,4 @@
-import { SystemPrompt, PromptTemplate } from './base';
+import { SystemPrompt, PromptTemplate, PromptExecution, PromptLibrary } from './base';
 
 // API Request/Response types for prompt management
 
