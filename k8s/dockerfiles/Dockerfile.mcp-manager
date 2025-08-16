@@ -1,0 +1,43 @@
+# Node.js service dockerfile for mcp-manager
+FROM node:20-alpine AS base
+RUN corepack enable
+WORKDIR /app
+
+# Dependencies stage
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY services/mcp-manager/package.json ./services/mcp-manager/
+COPY packages/ ./packages/
+RUN pnpm install --frozen-lockfile --production=false
+
+# Build stage
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN pnpm build --filter=@team-dashboard/mcp-manager
+
+# Production stage
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nodejs
+
+# Install security updates
+RUN apk update && apk upgrade && apk add --no-cache curl
+
+COPY --from=builder --chown=nodejs:nodejs /app/services/mcp-manager/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/services/mcp-manager/package.json ./package.json
+COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+
+USER nodejs
+
+EXPOSE 3002
+ENV PORT=3002
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3002/health || exit 1
+
+CMD ["node", "dist/index.js"]

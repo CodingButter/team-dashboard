@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: team-dashboard-base
+
+resources:
+- namespace.yaml
+- secrets.yaml
+- redis-deployment.yaml
+- redis-service.yaml
+- dashboard-deployment.yaml
+- dashboard-service.yaml
+- agent-manager-deployment.yaml
+- agent-manager-service.yaml
+- mcp-manager-deployment.yaml
+- mcp-manager-service.yaml
+- openai-service-deployment.yaml
+- openai-service-service.yaml
+- monitoring.yaml
+- network-policy.yaml
+
+commonLabels:
+  app.kubernetes.io/name: team-dashboard
+  app.kubernetes.io/part-of: team-dashboard
+
+images:
+- name: ghcr.io/codingbutter/team-dashboard/dashboard
+  newTag: latest
+- name: ghcr.io/codingbutter/team-dashboard/agent-manager
+  newTag: latest
+- name: ghcr.io/codingbutter/team-dashboard/mcp-manager
+  newTag: latest
+- name: ghcr.io/codingbutter/team-dashboard/openai-service
+  newTag: latest
