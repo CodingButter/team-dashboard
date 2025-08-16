@@ -51,3 +51,12 @@ export { ErrorCode, DashboardError } from './error-codes';
 
 // Export MCP types
 export * from './mcp';
+
+// Export workflow types
+export type { 
+  WorkflowTask, 
+  WorkflowTransition, 
+  Workflow, 
+  WorkflowStatus 
+} from './workflow';
+export { WorkflowState, WorkflowTaskStatus } from './workflow';
