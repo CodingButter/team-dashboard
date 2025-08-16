@@ -28,6 +28,13 @@ export interface CreateAgentMessage extends WSMessage {
       memory: number;
       cpu: number;
     };
+    systemPrompt?: string;
+    enableMemento?: boolean;
+    mementoConfig?: {
+      dbPath?: string;
+      maxEntities?: number;
+      maxRelations?: number;
+    };
   };
 }
 

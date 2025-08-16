@@ -19,10 +19,22 @@ export class DashboardWebSocketServer {
   private connectionManager: ConnectionManager;
   private agentManager: AgentManager;
   private messageHandler: MessageHandler;
+  private readonly maxConnections: number = 1000;
+  private readonly rateLimitMap: Map<string, number[]> = new Map();
+  private performanceMetrics = {
+    totalConnections: 0,
+    activeConnections: 0,
+    messageCount: 0,
+    avgLatency: 0
+  };
   
   constructor(private port: number = 3001) {
     this.httpServer = createServer();
-    this.wss = new WebSocketServer({ server: this.httpServer });
+    this.wss = new WebSocketServer({ 
+      server: this.httpServer,
+      maxPayload: 1024 * 1024, // 1MB max message size
+      backlog: 100 // Connection backlog
+    });
     
     // Initialize managers
     this.connectionManager = new ConnectionManager();
@@ -30,39 +42,64 @@ export class DashboardWebSocketServer {
     this.messageHandler = new MessageHandler(this.agentManager);
     
     this.setupServer();
+    this.startPerformanceMonitoring();
   }
   
   /**
    * Initialize WebSocket server and event handlers
    */
   private setupServer(): void {
-    this.wss.on('connection', (ws: WebSocket, _req: any) => {
+    this.wss.on('connection', (ws: WebSocket, req: any) => {
+      const clientIp = req.socket.remoteAddress;
+      
+      // Check connection limits
+      if (this.connectionManager.getConnectionCount() >= this.maxConnections) {
+        console.warn(`[WS] Connection limit reached, rejecting: ${clientIp}`);
+        ws.close(1013, 'Server overloaded');
+        return;
+      }
+      
+      // Check rate limiting
+      if (this.isRateLimited(clientIp)) {
+        console.warn(`[WS] Rate limited connection from: ${clientIp}`);
+        ws.close(1008, 'Rate limited');
+        return;
+      }
+      
       const client = this.connectionManager.addClient(ws);
+      this.performanceMetrics.totalConnections++;
+      this.performanceMetrics.activeConnections++;
       
-      console.log(`[WS] New connection: ${client.id}`);
+      console.log(`[WS] New connection: ${client.id} from ${clientIp} (${this.performanceMetrics.activeConnections}/${this.maxConnections})`);
       
-      // Set up event handlers
+      // Set up event handlers with performance monitoring
       ws.on('message', (data: Buffer) => {
-        this.messageHandler.handleMessage(client, data);
+        const start = performance.now();
+        this.messageHandler.handleMessage(client, data).finally(() => {
+          const latency = performance.now() - start;
+          this.updateLatencyMetrics(latency);
+          this.performanceMetrics.messageCount++;
+        });
       });
       
       ws.on('close', () => {
         this.handleDisconnect(client.id);
+        this.performanceMetrics.activeConnections--;
       });
       
       ws.on('error', (error) => {
         console.error(`[WS] Client error ${client.id}:`, error);
       });
       
-      // Start authentication timeout
+      // Start authentication timeout with shorter timeout for performance
       client.startAuthTimeout(() => {
         if (!client.isAuthenticated) {
           console.log(`[WS] Authentication timeout for client ${client.id}`);
-          ws.close();
+          ws.close(4001, 'Authentication timeout');
         }
-      });
+      }, 3000); // 3 second timeout for faster cleanup
       
-      // Set up heartbeat
+      // Set up optimized heartbeat
       this.setupHeartbeat(client);
     });
   }
@@ -96,6 +133,73 @@ export class DashboardWebSocketServer {
   }
   
   /**
+   * Check if client IP is rate limited
+   */
+  private isRateLimited(clientIp: string): boolean {
+    const now = Date.now();
+    const windowMs = 60000; // 1 minute window
+    const maxConnections = 10; // Max 10 connections per minute per IP
+    
+    const timestamps = this.rateLimitMap.get(clientIp) || [];
+    const recentTimestamps = timestamps.filter(ts => now - ts < windowMs);
+    
+    if (recentTimestamps.length >= maxConnections) {
+      return true;
+    }
+    
+    recentTimestamps.push(now);
+    this.rateLimitMap.set(clientIp, recentTimestamps);
+    
+    // Clean up old entries
+    if (recentTimestamps.length > maxConnections) {
+      this.rateLimitMap.set(clientIp, recentTimestamps.slice(-maxConnections));
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Update latency metrics with exponential moving average
+   */
+  private updateLatencyMetrics(latency: number): void {
+    const alpha = 0.1; // Smoothing factor
+    this.performanceMetrics.avgLatency = this.performanceMetrics.avgLatency === 0 
+      ? latency 
+      : (alpha * latency) + ((1 - alpha) * this.performanceMetrics.avgLatency);
+      
+    // Log slow operations
+    if (latency > 50) {
+      console.warn(`[WS] Slow message processing: ${latency.toFixed(2)}ms`);
+    }
+  }
+  
+  /**
+   * Start performance monitoring with periodic cleanup
+   */
+  private startPerformanceMonitoring(): void {
+    setInterval(() => {
+      // Clean up rate limit map
+      const now = Date.now();
+      const windowMs = 60000;
+      
+      for (const [ip, timestamps] of this.rateLimitMap.entries()) {
+        const recent = timestamps.filter(ts => now - ts < windowMs);
+        if (recent.length === 0) {
+          this.rateLimitMap.delete(ip);
+        } else {
+          this.rateLimitMap.set(ip, recent);
+        }
+      }
+      
+      // Log performance metrics every 5 minutes
+      console.log(`[WS] Performance: ${this.performanceMetrics.activeConnections} active, ` +
+        `${this.performanceMetrics.messageCount} msgs, ` +
+        `${this.performanceMetrics.avgLatency.toFixed(2)}ms avg latency`);
+        
+    }, 5 * 60 * 1000); // Every 5 minutes
+  }
+  
+  /**
    * Start the WebSocket server
    */
   public start(): void {
@@ -120,8 +224,23 @@ export class DashboardWebSocketServer {
    */
   public getStats(): any {
     return {
-      connections: this.connectionManager.getConnectionCount(),
-      agents: this.agentManager.getAgentCount()
+      connections: {
+        active: this.connectionManager.getConnectionCount(),
+        total: this.performanceMetrics.totalConnections,
+        max: this.maxConnections,
+        authenticated: this.connectionManager.getAuthenticatedClients().length
+      },
+      agents: {
+        count: this.agentManager.getAgentCount(),
+        active: this.agentManager.listActiveAgents().length
+      },
+      performance: {
+        messageCount: this.performanceMetrics.messageCount,
+        averageLatency: Math.round(this.performanceMetrics.avgLatency * 100) / 100,
+        rateLimitEntries: this.rateLimitMap.size
+      },
+      memory: process.memoryUsage(),
+      uptime: process.uptime()
     };
   }
 }

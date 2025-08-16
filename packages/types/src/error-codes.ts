@@ -26,6 +26,8 @@ export enum ErrorCode {
   AGENT_NOT_RUNNING = 2006,
   AGENT_RESOURCE_LIMIT = 2007,
   AGENT_WORKSPACE_INVALID = 2008,
+  AGENT_EXECUTION_FAILED = 2009,
+  AGENT_TERMINATION_FAILED = 2010,
   
   // ============================================================================
   // System & Resource Errors (3xxx)
@@ -133,6 +135,8 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCode.AGENT_NOT_RUNNING]: 'Agent is not running',
   [ErrorCode.AGENT_RESOURCE_LIMIT]: 'Agent resource limit exceeded',
   [ErrorCode.AGENT_WORKSPACE_INVALID]: 'Invalid workspace path',
+  [ErrorCode.AGENT_EXECUTION_FAILED]: 'Agent command execution failed',
+  [ErrorCode.AGENT_TERMINATION_FAILED]: 'Agent termination failed',
   
   // System
   [ErrorCode.RESOURCE_EXHAUSTED]: 'System resources exhausted',

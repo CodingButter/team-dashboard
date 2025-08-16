@@ -13,15 +13,73 @@ import {
   ResourceUsage,
   PtyOptions 
 } from '@team-dashboard/types';
+import IntegratedAgentLifecycleManager from '../lifecycle';
 
 /**
- * Agent spawner for creating and managing agent processes
+ * Agent spawner for creating and managing agent processes with integrated lifecycle management
  */
 export class AgentSpawner extends EventEmitter {
   private agents: Map<string, AgentProcessImpl> = new Map();
+  private lifecycleManager: IntegratedAgentLifecycleManager;
+  
+  constructor() {
+    super();
+    // Initialize lifecycle manager with performance-optimized settings
+    this.lifecycleManager = new IntegratedAgentLifecycleManager({
+      lifecycle: {
+        maxRestartAttempts: 3,
+        restartBackoffMs: 1000,
+        maxBackoffMs: 30000,
+        healthCheckInterval: 5000,
+        gracefulShutdownTimeout: 10000,
+        resourceCheckInterval: 2000
+      },
+      resources: {
+        enabled: true,
+        interval: 2000,
+        performanceMode: true,
+        alertThresholds: {
+          cpu: 80,
+          memory: 85,
+          disk: 90
+        }
+      },
+      health: {
+        enabled: true,
+        interval: 5000,
+        timeout: 3000,
+        retries: 3,
+        startPeriod: 10000
+      },
+      events: {
+        enabled: true,
+        logToFile: true,
+        logToConsole: true,
+        bufferSize: 100,
+        flushInterval: 5000
+      }
+    });
+
+    // Forward lifecycle events
+    this.lifecycleManager.on('agent:status_changed', (data) => {
+      this.emit('agent:status_changed', data);
+    });
+
+    this.lifecycleManager.on('agent:resource_alert', (alert) => {
+      this.emit('agent:resource_alert', alert);
+    });
+
+    this.lifecycleManager.on('agent:health_failed', (data) => {
+      this.emit('agent:health_failed', data);
+    });
+
+    this.lifecycleManager.on('agent:restart_attempt', (data) => {
+      this.emit('agent:restart_attempt', data);
+    });
+  }
   
   /**
-   * Spawn a new agent process
+   * Spawn a new agent process with integrated lifecycle management
    */
   async spawn(config: AgentSpawnConfig): Promise<AgentProcess> {
     console.log(`[AgentSpawner] Spawning agent: ${config.name}`);
@@ -74,6 +132,9 @@ export class AgentSpawner extends EventEmitter {
     // Initialize agent environment
     await this.initializeAgent(agent, config);
     
+    // Start lifecycle management
+    await this.lifecycleManager.manageAgent(config.id, agent, config);
+    
     // Update status
     agent.status = 'running';
     this.emit('agent:ready', { agentId: config.id });
@@ -82,7 +143,7 @@ export class AgentSpawner extends EventEmitter {
   }
   
   /**
-   * Kill an agent process
+   * Kill an agent process with graceful shutdown
    */
   async kill(agentId: string, signal: string = 'SIGTERM'): Promise<void> {
     const agent = this.agents.get(agentId);
@@ -90,7 +151,14 @@ export class AgentSpawner extends EventEmitter {
       throw new Error(`Agent not found: ${agentId}`);
     }
     
-    agent.kill(signal);
+    // Attempt graceful shutdown first
+    const gracefulSuccess = await this.lifecycleManager.gracefulShutdown(agentId, 5000);
+    
+    if (!gracefulSuccess) {
+      console.warn(`[AgentSpawner] Graceful shutdown failed for ${agentId}, forcing termination`);
+      agent.kill(signal);
+    }
+    
     this.agents.delete(agentId);
     this.emit('agent:terminated', { agentId });
   }
@@ -182,6 +250,51 @@ export class AgentSpawner extends EventEmitter {
     }
   }
   
+  /**
+   * Get comprehensive agent information including lifecycle status
+   */
+  getAgentInfo(agentId: string): any {
+    return this.lifecycleManager.getAgentInfo(agentId);
+  }
+
+  /**
+   * Get all agents information including lifecycle status
+   */
+  getAllAgentsInfo(): any[] {
+    return this.lifecycleManager.getAllAgentsInfo();
+  }
+
+  /**
+   * Get lifecycle manager statistics
+   */
+  getLifecycleStats(): any {
+    return this.lifecycleManager.getStats();
+  }
+
+  /**
+   * Get recent events for an agent
+   */
+  async getAgentEvents(agentId: string, limit = 50): Promise<any[]> {
+    return await this.lifecycleManager.getAgentEvents(agentId, limit);
+  }
+
+  /**
+   * Perform system health check
+   */
+  async performHealthCheck(): Promise<{ healthy: boolean; issues: string[] }> {
+    return await this.lifecycleManager.performSystemHealthCheck();
+  }
+
+  /**
+   * Shutdown all agents and lifecycle management
+   */
+  async shutdown(): Promise<void> {
+    console.log('[AgentSpawner] Shutting down agent spawner...');
+    await this.lifecycleManager.shutdown();
+    this.agents.clear();
+    console.log('[AgentSpawner] Agent spawner shutdown complete');
+  }
+
   /**
    * Utility delay function
    */
