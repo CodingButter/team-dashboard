@@ -39,7 +39,7 @@ export type {
   MCPCredentials,
   ToolExecution,
   ToolApprovalRequest,
-  SystemPrompt,
+  SystemPrompt as MCPSystemPrompt,
   AgentConfiguration
 } from './api/mcp';
 
@@ -54,3 +54,6 @@ export * from './mcp';
 
 // Export communication types
 export * from './communication';
+
+// Export Prompts types
+export * from './prompts';
