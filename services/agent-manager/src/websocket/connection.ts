@@ -14,6 +14,7 @@ export class ClientConnection {
   public isAuthenticated: boolean = false;
   public userId?: string;
   public sessionId?: string;
+  public agentId?: string;
   public subscriptions: Set<string> = new Set();
   public heartbeatInterval?: NodeJS.Timeout;
   private authTimeout?: NodeJS.Timeout;
@@ -111,6 +112,13 @@ export class ConnectionManager {
         client.send(message);
       }
     });
+  }
+  
+  /**
+   * Get client by agent ID
+   */
+  getClientByAgentId(agentId: string): ClientConnection | undefined {
+    return Array.from(this.clients.values()).find(client => client.agentId === agentId);
   }
   
   /**

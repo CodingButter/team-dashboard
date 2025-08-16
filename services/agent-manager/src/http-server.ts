@@ -6,7 +6,7 @@
 import Fastify from 'fastify';
 import OpenAIAgentManager, { OpenAIAgentConfig } from './agents/openai-agent-manager.js';
 import { v4 as uuidv4 } from 'uuid';
-import { registerWorkflowRoutes } from './workflow/index.js';
+import { registerWorkflowRoutes, registerWorkflowApiRoutes } from './workflow/index.js';
 
 const fastify = Fastify({
   logger: {
@@ -30,6 +30,7 @@ fastify.register(require('@fastify/cors'), {
 
 // Register workflow routes
 fastify.register(registerWorkflowRoutes);
+fastify.register(registerWorkflowApiRoutes);
 
 // Routes
 fastify.register(async function (fastify) {

@@ -19,14 +19,27 @@ import {
 } from '@team-dashboard/types';
 import { ClientConnection } from './connection';
 import { AgentManager } from './agent-manager';
+import WorkflowWebSocketHandler from './workflow-handler';
 
 /**
  * Handles WebSocket message routing and processing
  */
 export class MessageHandler {
+  private workflowHandler: WorkflowWebSocketHandler;
+  
   constructor(
     private agentManager: AgentManager
-  ) {}
+  ) {
+    this.workflowHandler = new WorkflowWebSocketHandler(agentManager.getConnectionManager());
+    this.initialize();
+  }
+  
+  /**
+   * Initialize async components
+   */
+  private async initialize(): Promise<void> {
+    await this.workflowHandler.initialize();
+  }
 
   /**
    * Handle incoming WebSocket message
@@ -86,6 +99,17 @@ export class MessageHandler {
       
       case 'ping':
         this.handlePing(client, message as HeartbeatMessage);
+        break;
+      
+      // Workflow messages
+      case 'workflow:create':
+      case 'workflow:assign':
+      case 'workflow:start':
+      case 'workflow:complete':
+      case 'workflow:status':
+      case 'workflow:list':
+      case 'workflow:agent:tasks':
+        await this.workflowHandler.handleMessage(client, message);
         break;
       
       default:

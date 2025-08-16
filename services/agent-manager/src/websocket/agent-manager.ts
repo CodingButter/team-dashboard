@@ -31,6 +31,13 @@ export class AgentManager {
     this.openaiManager = new OpenAIAgentManager();
     this.setupOpenAIEvents();
   }
+  
+  /**
+   * Get connection manager for workflow handler
+   */
+  getConnectionManager(): ConnectionManager {
+    return this.connectionManager;
+  }
 
   /**
    * Handle agent creation
