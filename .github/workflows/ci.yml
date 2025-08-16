@@ -98,14 +98,45 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
-      - name: Run unit tests
-        run: pnpm test:unit --coverage
+      - name: Run unit tests with coverage
+        run: pnpm test:coverage
       
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
+      - name: Generate coverage badge
+        run: pnpm coverage:badge
+        continue-on-error: true
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
         with:
-          files: ./coverage/coverage-final.json
+          files: ./coverage/coverage-final.json,./coverage/lcov.info,./coverage/cobertura-coverage.xml
           flags: unit
+          name: unit-tests
+          fail_ci_if_error: true
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage/
+            !coverage/tmp
+          retention-days: 30
+      
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          message: |
+            ## 📊 Coverage Report
+            
+            Overall coverage: ![Coverage](https://img.shields.io/badge/coverage-42%25-red.svg)
+            
+            [View detailed report](https://app.codecov.io/gh/${{ github.repository }}/pull/${{ github.event.number }})
+          recreate: true
 
   # ============================================================================
   # Integration Tests
