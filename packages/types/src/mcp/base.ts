@@ -3,11 +3,14 @@
  * Base MCP server types and interfaces
  */
 
+// Re-export template types for convenience
+export type { McpServerTemplate, McpCategory } from './templates';
+
 /** Transport protocols supported by MCP servers */
 export type McpTransport = 'stdio' | 'http+sse';
 
 /** Status of an MCP server */
-export type McpServerStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type McpStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 /** Environment variable configuration */
 export interface McpEnvironmentVariable {
@@ -59,7 +62,7 @@ export type McpServer = McpStdioConfig | McpHttpConfig;
 /** Runtime status information for an MCP server */
 export interface McpServerStatus {
   serverId: string;
-  status: McpServerStatus;
+  status: McpStatus;
   lastConnected?: Date;
   lastError?: string;
   capabilities?: string[];

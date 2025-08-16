@@ -5,8 +5,7 @@ import { McpServer, McpServerStatus, McpServerTemplate } from '@team-dashboard/t
 import { 
   McpServerCard, 
   McpServerForm, 
-  McpMarketplace, 
-  McpStatusIndicator 
+  McpMarketplace
 } from '@/components/mcp'
 
 export default function McpPage() {
