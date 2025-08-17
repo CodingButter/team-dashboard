@@ -299,7 +299,7 @@ export default function McpPage() {
                     status={serverStatuses[server.id]}
                     onConnect={handleConnectServer}
                     onDisconnect={handleDisconnectServer}
-                    onEdit={(id) => {
+                    onEdit={(id: string) => {
                       setEditingServer(servers.find(s => s.id === id) || null)
                       setShowForm(true)
                     }}

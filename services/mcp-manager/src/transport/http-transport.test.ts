@@ -346,7 +346,8 @@ describe('HttpTransport', () => {
   describe('Force Reconnection', () => {
     it('should force reconnection when requested', async () => {
       await transport.connect();
-      // const initialStats = transport.getConnectionStats();
+      const initialStats = transport.getConnectionStats();
+      expect(initialStats.connected).toBe(true);
       
       await transport.forceReconnect();
       

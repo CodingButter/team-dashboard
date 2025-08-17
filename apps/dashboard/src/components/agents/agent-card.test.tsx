@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '../../../../../test/utils'
 import { AgentCard } from './agent-card'
-import type { AgentModel, AgentStatus } from '@team-dashboard/types'
+import type { AgentModel, AgentStatus, AgentConfiguration } from '@team-dashboard/types'
 
 // Mock the AgentTerminal component since it has complex dependencies
 vi.mock('./agent-terminal', () => ({
@@ -24,12 +24,12 @@ const createMockAgent = (overrides = {}) => ({
   memory: 157286400, // ~150MB
   configuration: {
     id: 'test-config-123',
-    name: 'Test Agent Config',
+    name: 'Test Configuration',
     model: 'gpt-4o',
     systemPromptId: 'test-prompt-123',
     mcpServers: ['server1', 'server2'],
     toolPermissions: {},
-  },
+  } as AgentConfiguration,
   systemPrompt: 'You are a test agent',
   ...overrides,
 })

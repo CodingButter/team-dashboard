@@ -247,7 +247,7 @@ async function getSystemMetrics(): Promise<SystemMetrics> {
   }
 }
 
-export function setupMetricsWebSocket(app: FastifyInstance, io: Server) {
+export function setupMetricsWebSocket(_app: FastifyInstance, io: Server) {
   const metricsNamespace = io.of('/metrics')
   
   metricsNamespace.on('connection', (socket) => {

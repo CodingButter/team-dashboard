@@ -1,11 +1,11 @@
 import Fastify from 'fastify'
-import fastifyWebsocket from '@fastify/websocket'
+// import fastifyWebsocket from '@fastify/websocket'
 import fastifyCors from '@fastify/cors'
 import { Server } from 'socket.io'
 import { createServer } from 'http'
 import { setupMetricsWebSocket } from './websocket'
 import * as os from 'os'
-import * as fs from 'fs/promises'
+// import * as fs from 'fs/promises'
 
 const fastify = Fastify({
   logger: true
@@ -28,7 +28,7 @@ const io = new Server(httpServer, {
 })
 
 // System metrics endpoint
-fastify.get('/metrics', async (request, reply) => {
+fastify.get('/metrics', async (_request, _reply) => {
   const cpus = os.cpus()
   const totalMem = os.totalmem()
   const freeMem = os.freemem()
@@ -56,7 +56,7 @@ fastify.get('/metrics', async (request, reply) => {
 })
 
 // Health check endpoint
-fastify.get('/health', async (request, reply) => {
+fastify.get('/health', async (_request, _reply) => {
   return { 
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -65,7 +65,7 @@ fastify.get('/health', async (request, reply) => {
 })
 
 // Alert thresholds configuration
-fastify.get('/config/thresholds', async (request, reply) => {
+fastify.get('/config/thresholds', async (_request, _reply) => {
   return {
     cpu: {
       warning: 80,
@@ -86,14 +86,14 @@ fastify.get('/config/thresholds', async (request, reply) => {
 })
 
 // Update alert thresholds
-fastify.post('/config/thresholds', async (request, reply) => {
+fastify.post('/config/thresholds', async (request, _reply) => {
   const thresholds = request.body
   // Store thresholds (in production, this would be persisted)
   return { success: true, thresholds }
 })
 
 // Agent metrics endpoint
-fastify.get('/agents/metrics', async (request, reply) => {
+fastify.get('/agents/metrics', async (_request, _reply) => {
   // Mock agent metrics for now
   return [
     {
@@ -122,7 +122,7 @@ fastify.get('/agents/metrics', async (request, reply) => {
 })
 
 // Historical metrics endpoint
-fastify.get('/metrics/history', async (request, reply) => {
+fastify.get('/metrics/history', async (request, _reply) => {
   const { hours = 24, interval = 'minute' } = request.query as any
   
   // Mock historical data
