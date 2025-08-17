@@ -448,8 +448,8 @@ export class EnhancedConversationManager {
             }
 
             totalMessages += conversation.messages.length;
-            oldestTime = Math.min(oldestTime, conversation.createdAt);
-            newestTime = Math.max(newestTime, conversation.updatedAt);
+            oldestTime = Math.min(oldestTime, new Date(conversation.createdAt).getTime());
+            newestTime = Math.max(newestTime, new Date(conversation.updatedAt).getTime());
           }
         } catch (error) {
           console.warn(`[MemoryManager] Error processing key ${key}:`, error);
@@ -536,7 +536,7 @@ export class EnhancedConversationManager {
               conversation = JSON.parse(data);
             }
 
-            if (conversation.updatedAt < cutoffTime) {
+            if (new Date(conversation.updatedAt).getTime() < cutoffTime) {
               await this.redis.del(key);
               deletedCount++;
             }
