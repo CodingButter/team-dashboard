@@ -97,6 +97,33 @@ services:
       - postgres
     command: pnpm dev
 
+  git-service:
+    build:
+      context: ./services/git-service
+      dockerfile: Dockerfile.dev
+    container_name: team-dashboard-git-service
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+      - HOST=0.0.0.0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GIT_WORKSPACE_ROOT=/tmp/git-workspace
+      - ENCRYPTION_KEY=dev-encryption-key-change-in-production-32-chars
+    volumes:
+      - ./services/git-service:/app
+      - ./packages:/packages
+      - /app/node_modules
+      - git_workspace:/tmp/git-workspace
+    networks:
+      - dashboard-network
+    depends_on:
+      - redis
+      - postgres
+    command: pnpm dev
+
   # Infrastructure Services
   redis:
     image: redis:7-alpine
@@ -272,3 +299,4 @@ volumes:
   influxdb_data:
   influxdb_config:
   loki_data:
+  git_workspace:
