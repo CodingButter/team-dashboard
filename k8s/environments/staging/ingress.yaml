@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dashboard-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - staging.team-dashboard.app
+    secretName: staging-tls-secret
+  rules:
+  - host: staging.team-dashboard.app
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dashboard
+            port:
+              number: 3000
+      - path: /api/agents
+        pathType: Prefix
+        backend:
+          service:
+            name: agent-manager
+            port:
+              number: 3001
+      - path: /api/mcp
+        pathType: Prefix
+        backend:
+          service:
+            name: mcp-manager
+            port:
+              number: 3002
+      - path: /api/openai
+        pathType: Prefix
+        backend:
+          service:
+            name: openai-service
+            port:
+              number: 3003

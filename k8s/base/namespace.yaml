@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-dashboard
+  labels:
+    app.kubernetes.io/name: team-dashboard
+    app.kubernetes.io/version: v1
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-dashboard-staging
+  labels:
+    app.kubernetes.io/name: team-dashboard
+    app.kubernetes.io/version: v1
+    environment: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-dashboard-prod
+  labels:
+    app.kubernetes.io/name: team-dashboard
+    app.kubernetes.io/version: v1
+    environment: production

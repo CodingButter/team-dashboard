@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { ToolApprovalNotifications } from '../notifications/tool-approval-notifications'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -10,6 +11,11 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const handleNotificationClick = (request: any) => {
+    // Navigate to approval page when notification is clicked
+    window.location.href = '/approvals'
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -28,6 +34,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Tool Approval Notifications */}
+      <ToolApprovalNotifications onRequestClick={handleNotificationClick} />
     </div>
   )
 }

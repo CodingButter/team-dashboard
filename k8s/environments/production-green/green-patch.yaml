@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: dashboard-green
+        version: green
+    spec:
+      containers:
+      - name: dashboard
+        env:
+        - name: DEPLOYMENT_SLOT
+          value: "green"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-manager
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: agent-manager-green
+        version: green
+    spec:
+      containers:
+      - name: agent-manager
+        env:
+        - name: DEPLOYMENT_SLOT
+          value: "green"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-manager
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: mcp-manager-green
+        version: green
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openai-service
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: openai-service-green
+        version: green
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-green
+spec:
+  selector:
+    app: dashboard-green
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-manager-green
+spec:
+  selector:
+    app: agent-manager-green
