@@ -1,12 +1,27 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
-import Editor from '@monaco-editor/react'
+/**
+ * @package dashboard/components/prompts
+ * System prompt editor - refactored for maintainability
+ * 
+ * Original 665+ lines broken down into:
+ * - Extracted components: VariablePanel, PreviewPanel, VersionHistoryPanel
+ * - Custom hooks: useAutoSave, usePromptEditor, useVersionHistory
+ * - Default templates moved to separate file
+ */
+
+import React, { useState, useEffect } from 'react'
+import Editor, { DiffEditor } from '@monaco-editor/react'
 import type { SystemPrompt, PromptTemplate, PromptVariable } from '@team-dashboard/types'
-import { TemplateSelector } from './components/TemplateSelector'
-import { VariableEditor } from './components/VariableEditor'
-import { useAutoSave } from './hooks/use-auto-save'
-import { usePromptVariables } from './hooks/use-prompt-variables'
+
+// Extracted components and hooks
+import { DEFAULT_TEMPLATES } from './templates/default-templates.js'
+import { VariablePanel } from './editor/VariablePanel.js'
+import { PreviewPanel } from './editor/PreviewPanel.js'
+import { VersionHistoryPanel } from './editor/VersionHistoryPanel.js'
+import { useAutoSave } from './hooks/useAutoSave.js'
+import { usePromptEditor } from './hooks/usePromptEditor.js'
+import { useVersionHistory } from './hooks/useVersionHistory.js'
 
 interface SystemPromptEditorProps {
   prompt?: SystemPrompt
@@ -15,6 +30,14 @@ interface SystemPromptEditorProps {
   isEditing?: boolean
   templates?: PromptTemplate[]
   onPreview?: (generatedPrompt: string) => void
+}
+
+interface PromptVersion {
+  id: string
+  content: string
+  variables: PromptVariable[]
+  timestamp: Date
+  message?: string
 }
 
 export function SystemPromptEditor({ 
@@ -46,66 +69,50 @@ export function SystemPromptEditor({
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [showVariablePanel, setShowVariablePanel] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [generatedPreview, setGeneratedPreview] = useState('')
-
-  // Auto-save hook
-  const { isDirty, lastSaved, markDirty } = useAutoSave({
+  const [versions, setVersions] = useState<PromptVersion[]>([])
+  
+  const allTemplates = [...DEFAULT_TEMPLATES, ...templates]
+  
+  // Custom hooks for functionality
+  const autoSave = useAutoSave({
     content: formData.content || '',
     variables: formData.variables || []
   })
-
-  // Variable management hook  
-  const { handleVariableChange, addVariable, removeVariable, generatePreview } = usePromptVariables({
-    variables: formData.variables || [],
-    onVariablesChange: (variables) => setFormData(prev => ({ ...prev, variables })),
-    onMarkDirty: markDirty
+  
+  const editor = usePromptEditor({
+    formData,
+    allTemplates,
+    onFormDataChange: setFormData,
+    onDirtyChange: autoSave.setIsDirty,
+    onPreviewChange: setGeneratedPreview,
+    onPreview
+  })
+  
+  const versionHistory = useVersionHistory({
+    onFormDataChange: setFormData,
+    onDirtyChange: autoSave.setIsDirty,
+    onVersionHistoryToggle: setShowVersionHistory,
+    onPreviewGenerate: editor.generatePreview
   })
 
-  // Content change handler
-  const handleContentChange = useCallback((value: string | undefined) => {
-    const content = value || ''
-    setFormData(prev => ({ ...prev, content }))
-    markDirty()
-    
-    const preview = generatePreview(content)
-    setGeneratedPreview(preview)
-    onPreview?.(preview)
-  }, [generatePreview, markDirty, onPreview])
-
-  // Update preview when variables change
+  // Initialize version history for editing
   useEffect(() => {
-    const preview = generatePreview(formData.content || '')
-    setGeneratedPreview(preview)
-    onPreview?.(preview)
-  }, [formData.variables, formData.content, generatePreview, onPreview])
-
-  const handleTemplateSelect = useCallback((templateName: string) => {
-    setSelectedTemplate(templateName)
-    // Template selection logic will be handled by TemplateSelector
-  }, [])
-
-  const handleSave = useCallback(() => {
-    const promptToSave: SystemPrompt = {
-      ...formData,
-      id: formData.id || `prompt-${Date.now()}`,
-      name: formData.name || 'Unnamed Prompt',
-      description: formData.description || '',
-      content: formData.content || '',
-      version: formData.version || '1.0.0',
-      category: formData.category || 'custom',
-      variables: formData.variables || [],
-      metadata: formData.metadata || {
-        author: 'user',
-        license: 'private',
-        source: 'user',
-        performance: { successRate: 0, averageTokens: 0, averageResponseTime: 0 },
-        usage: { totalUses: 0, lastUsed: new Date(), popularityScore: 0 }
-      },
-      createdAt: prompt?.createdAt || new Date(),
-      updatedAt: new Date()
+    if (isEditing && prompt && versions.length === 0) {
+      const initialVersion = versionHistory.initializeVersion(prompt, versions)
+      setVersions([initialVersion])
     }
+  }, [isEditing, prompt, versions.length, versionHistory])
+
+  useEffect(() => {
+    editor.generatePreview()
+  }, [editor])
+
+  const handleSave = () => {
+    const promptToSave = editor.handleSave()
     onSave(promptToSave)
-  }, [formData, onSave, prompt?.createdAt])
+  }
 
   return (
     <div className="bg-card border border-border rounded-lg p-6 space-y-6">
@@ -115,10 +122,10 @@ export function SystemPromptEditor({
           <h3 className="text-lg font-semibold text-foreground">
             {isEditing ? 'Edit System Prompt' : 'Create System Prompt'}
           </h3>
-          {lastSaved && (
+          {autoSave.lastSaved && (
             <p className="text-sm text-muted-foreground">
-              Last saved: {lastSaved.toLocaleTimeString()}
-              {isDirty && <span className="text-orange-500 ml-2">• Unsaved changes</span>}
+              Last saved: {autoSave.lastSaved.toLocaleTimeString()}
+              {autoSave.isDirty && <span className="text-orange-500 ml-2">• Unsaved changes</span>}
             </p>
           )}
         </div>
@@ -126,132 +133,177 @@ export function SystemPromptEditor({
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setShowVariablePanel(!showVariablePanel)}
-            className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+            className={`px-3 py-1 text-sm rounded ${
+              showVariablePanel ? 'bg-blue-600 text-white' : 'bg-secondary text-secondary-foreground'
+            }`}
           >
             Variables
           </button>
           <button
             onClick={() => setShowPreview(!showPreview)}
-            className="px-3 py-1 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+            className={`px-3 py-1 text-sm rounded ${
+              showPreview ? 'bg-blue-600 text-white' : 'bg-secondary text-secondary-foreground'
+            }`}
           >
             Preview
           </button>
           <button
-            onClick={handleSave}
-            disabled={!formData.name || !formData.content}
-            className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 text-white rounded transition-colors"
+            onClick={() => setShowVersionHistory(!showVersionHistory)}
+            className={`px-3 py-1 text-sm rounded ${
+              showVersionHistory ? 'bg-blue-600 text-white' : 'bg-secondary text-secondary-foreground'
+            }`}
           >
-            Save
-          </button>
-          <button
-            onClick={onCancel}
-            className="px-3 py-1 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
-          >
-            Cancel
+            History
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        {/* Left Panel - Metadata & Templates */}
-        <div className="space-y-4">
-          <h4 className="text-md font-medium text-foreground">Prompt Configuration</h4>
-          
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Name</label>
-            <input
-              type="text"
-              value={formData.name || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground"
-              placeholder="Enter prompt name..."
-            />
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Panel - Form Fields */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Name</label>
+              <input
+                type="text"
+                value={formData.name || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground"
+                placeholder="Prompt name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Category</label>
+              <select
+                value={formData.category || 'custom'}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as any }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground"
+              >
+                <option value="custom">Custom</option>
+                <option value="frontend">Frontend</option>
+                <option value="backend">Backend</option>
+                <option value="devops">DevOps</option>
+                <option value="data">Data</option>
+                <option value="marketing">Marketing</option>
+              </select>
+            </div>
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Description</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Description</label>
             <textarea
               value={formData.description || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground"
-              rows={3}
-              placeholder="Describe this prompt..."
+              rows={2}
+              placeholder="Describe what this prompt does"
             />
           </div>
 
+          {/* Template Selection */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Category</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Start from Template</label>
             <select
-              value={formData.category || 'custom'}
-              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as any }))}
+              value={selectedTemplate}
+              onChange={(e) => {
+                setSelectedTemplate(e.target.value)
+                if (e.target.value) editor.handleTemplateSelect(e.target.value)
+              }}
               className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground"
             >
-              <option value="custom">Custom</option>
-              <option value="frontend">Frontend</option>
-              <option value="backend">Backend</option>
-              <option value="devops">DevOps</option>
-              <option value="data">Data</option>
-              <option value="content">Content</option>
+              <option value="">Select a template...</option>
+              {allTemplates.map((template, index) => (
+                <option key={index} value={template.name}>
+                  {template.name} - {template.description}
+                </option>
+              ))}
             </select>
           </div>
 
-          <TemplateSelector
-            templates={templates}
-            selectedTemplate={selectedTemplate}
-            onTemplateSelect={handleTemplateSelect}
-          />
+          {/* Content Editor */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-foreground">
+                Content{versionHistory.showDiffViewer && versionHistory.diffVersion && ' - Diff View'}
+              </label>
+              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                <span>{formData.content?.length || 0} characters</span>
+                <button onClick={editor.formatContent} className="text-blue-400 hover:text-blue-300">
+                  Format
+                </button>
+                {versionHistory.showDiffViewer && (
+                  <button
+                    onClick={() => versionHistory.setShowDiffViewer(false)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Close Diff
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="border border-border rounded-md overflow-hidden">
+              {versionHistory.showDiffViewer && versionHistory.diffVersion ? (
+                <DiffEditor
+                  height="600px"
+                  language="markdown"
+                  theme="vs-dark"
+                  original={versionHistory.diffVersion.content}
+                  modified={formData.content || ''}
+                  options={{ fontSize: 14, readOnly: false, automaticLayout: true, renderSideBySide: true }}
+                />
+              ) : (
+                <Editor
+                  height="600px"
+                  language="markdown"
+                  theme="vs-dark"
+                  value={formData.content || ''}
+                  onChange={editor.handleContentChange}
+                  onMount={(editorInstance) => { editor.editorRef.current = editorInstance }}
+                  options={{ fontSize: 14, wordWrap: 'on', minimap: { enabled: false }, automaticLayout: true }}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end space-x-3 pt-4">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              {isEditing ? 'Update' : 'Create'} Prompt
+            </button>
+          </div>
         </div>
 
-        {/* Center Panel - Editor */}
-        <div className={`space-y-4 ${showPreview || showVariablePanel ? 'xl:col-span-2' : 'xl:col-span-3'}`}>
-          <div className="flex items-center justify-between">
-            <h4 className="text-md font-medium text-foreground">Prompt Content</h4>
-          </div>
-          
-          <div className="border border-border rounded-md">
-            <Editor
-              height="400px"
-              defaultLanguage="markdown"
-              value={formData.content || ''}
-              onChange={handleContentChange}
-              theme="vs-dark"
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineNumbers: 'on',
-                wordWrap: 'on',
-                automaticLayout: true
-              }}
-            />
-          </div>
-          
-          <div className="text-xs text-muted-foreground">
-            <p>Shortcuts: Ctrl+S (save), Ctrl+Z (undo), Ctrl+Y (redo), Ctrl+F (find)</p>
-            <p>Variables: Use {{variable_name}} syntax for variable substitution</p>
-          </div>
-        </div>
-
-        {/* Right Panel - Variables/Preview */}
-        {(showVariablePanel || showPreview) && (
+        {/* Right Panel - Variables/Preview/History */}
+        {(showVariablePanel || showPreview || showVersionHistory) && (
           <div className="space-y-4">
-            {/* Variable Panel */}
             {showVariablePanel && (
-              <VariableEditor
+              <VariablePanel
                 variables={formData.variables || []}
-                onVariableChange={handleVariableChange}
-                onAddVariable={addVariable}
-                onRemoveVariable={removeVariable}
+                onVariableChange={editor.handleVariableChange}
+                onAddVariable={editor.addVariable}
+                onRemoveVariable={editor.removeVariable}
               />
             )}
-
-            {/* Preview Panel */}
-            {showPreview && (
-              <div className="border border-border rounded-md p-4">
-                <h5 className="font-medium text-foreground mb-3">Live Preview</h5>
-                <div className="bg-background border border-border rounded p-3 text-sm max-h-80 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap text-foreground">{generatedPreview}</pre>
-                </div>
-              </div>
+            {showPreview && <PreviewPanel content={generatedPreview} />}
+            {showVersionHistory && (
+              <VersionHistoryPanel
+                versions={versions}
+                onRevertToVersion={versionHistory.revertToVersion}
+                onShowDiff={versionHistory.showDiff}
+              />
             )}
           </div>
         )}

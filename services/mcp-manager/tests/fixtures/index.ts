@@ -3,20 +3,12 @@
  * Comprehensive MCP server test fixtures for testing without real server instances
  */
 
-export { MockMcpServer } from './mock-server';
+export { MockMcpServer, createMockServer, mockServers } from './mock-server';
 export { McpTestData } from './test-data';
 export { McpErrorScenarios } from './error-scenarios';
 export { McpPerformanceFixtures } from './performance-fixtures';
-export { McpIntegrationHarness } from './integration-harness';
-export { McpProtocolFixtures } from './protocol-fixtures-refactored';
-
-// Specialized fixture classes for focused testing
-export { InitializationFixtures } from './initialization-fixtures';
-export { ToolsFixtures } from './tools-fixtures';
-export { ResourcesFixtures } from './resources-fixtures';
-export { PromptsFixtures } from './prompts-fixtures';
-export { BaseFixtureFactory } from './base-factory';
-export * from './types';
+export { McpIntegrationHarness, createIntegrationHarness } from './integration-harness';
+export { McpProtocolFixtures } from './protocol-fixtures';
 
 // Main test fixtures interface
 export interface MCPTestFixtures {

@@ -23,15 +23,12 @@ const createMockAgent = (overrides = {}) => ({
   cpu: 25.5,
   memory: 157286400, // ~150MB
   configuration: {
-    id: 'config-123',
+    id: 'test-config-123',
     name: 'Test Agent Config',
     model: 'gpt-4o',
-    systemPromptId: 'prompt-123',
+    systemPromptId: 'test-prompt-123',
     mcpServers: ['server1', 'server2'],
-    toolPermissions: {
-      'file_operations': 'require_approval' as const,
-      'web_access': 'always_allow' as const,
-    },
+    toolPermissions: {},
   },
   systemPrompt: 'You are a test agent',
   ...overrides,
@@ -184,7 +181,12 @@ describe('AgentCard', () => {
   it('displays MCP server count when available', () => {
     const agent = createMockAgent({
       configuration: {
+        id: 'test-config-123',
+        name: 'Test Agent Config',
+        model: 'gpt-4o',
+        systemPromptId: 'test-prompt-123',
         mcpServers: ['server1', 'server2', 'server3'],
+        toolPermissions: {},
       },
     })
     render(<AgentCard agent={agent} />)

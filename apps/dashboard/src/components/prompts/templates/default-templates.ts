@@ -1,6 +1,10 @@
+/**
+ * @package dashboard/components/prompts/templates
+ * Default prompt templates for quick start
+ */
+
 import type { PromptTemplate, PromptCategory } from '@team-dashboard/types'
 
-// Default templates for quick start
 export const DEFAULT_TEMPLATES: Partial<PromptTemplate>[] = [
   {
     name: 'Frontend Expert',

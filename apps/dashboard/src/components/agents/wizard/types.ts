@@ -1,48 +1,54 @@
 /**
  * @package dashboard/components/agents/wizard
- * Shared types and interfaces for the agent creation wizard
+ * Wizard-specific types and interfaces
  */
 
-import { AgentConfiguration, SystemPrompt, MCPServer, AgentModel } from '@team-dashboard/types';
+export type WizardStep = 'basic' | 'model' | 'prompt' | 'mcp' | 'permissions' | 'review'
 
-export type WizardStep = 'basic' | 'model' | 'prompt' | 'mcp' | 'permissions' | 'review';
-
-export interface WizardStepInfo {
-  key: WizardStep;
-  title: string;
-  description: string;
+export interface WizardStepConfig {
+  key: WizardStep
+  title: string
+  description: string
+  isValid?: boolean
 }
 
-export interface AgentCreationWizardProps {
-  onCreateAgent: (config: AgentConfiguration) => void;
-  onCancel: () => void;
-  systemPrompts: SystemPrompt[];
-  mcpServers: MCPServer[];
-  isCreating?: boolean;
+export interface WizardState {
+  currentStep: WizardStep
+  currentStepIndex: number
+  totalSteps: number
+  canGoNext: boolean
+  canGoPrev: boolean
 }
 
-export interface StepComponentProps {
-  config: Partial<AgentConfiguration>;
-  updateConfig: (updates: Partial<AgentConfiguration>) => void;
-  systemPrompts: SystemPrompt[];
-  mcpServers: MCPServer[];
-  onNext: () => void;
-  onPrevious: () => void;
-  canProceed: boolean;
-  isFirst: boolean;
-  isLast: boolean;
-}
-
-export interface ModelOption {
-  model: AgentModel;
-  name: string;
-  description: string;
-  provider: string;
-}
-
-export interface PermissionLevel {
-  level: 'restrictive' | 'moderate' | 'permissive';
-  name: string;
-  description: string;
-  features: string[];
-}
+export const WIZARD_STEPS: WizardStepConfig[] = [
+  {
+    key: 'basic',
+    title: 'Basic Information',
+    description: 'Set up agent name and description'
+  },
+  {
+    key: 'model',
+    title: 'Model Selection',
+    description: 'Choose the AI model to use'
+  },
+  {
+    key: 'prompt',
+    title: 'System Prompt',
+    description: 'Configure the agent behavior'
+  },
+  {
+    key: 'mcp',
+    title: 'MCP Integration',
+    description: 'Connect to external services'
+  },
+  {
+    key: 'permissions',
+    title: 'Permissions',
+    description: 'Set security permissions'
+  },
+  {
+    key: 'review',
+    title: 'Review & Create',
+    description: 'Review configuration and create agent'
+  }
+]
