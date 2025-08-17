@@ -29,6 +29,9 @@ export type {
 // Export essential API types
 export type { AgentModel, AgentStatus, LogLevel, UserRole } from './api/common';
 
+// Export CSV types for data import/export
+export * from './api/csv';
+
 // Export MCP types
 export type { 
   MCPServer, 
@@ -57,3 +60,6 @@ export * from './communication';
 
 // Export Prompts types
 export * from './prompts';
+
+// Export Validation types and utilities
+export * from './validation';
