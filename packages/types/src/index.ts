@@ -29,6 +29,9 @@ export type {
 // Export essential API types
 export type { AgentModel, AgentStatus, LogLevel, UserRole } from './api/common';
 
+// Export agent API types
+export type { Agent, AgentMetrics, CreateAgentRequest, AgentCommand, AgentCommandResponse } from './api/agents';
+
 // Export MCP types
 export type { 
   MCPServer, 
@@ -47,7 +50,7 @@ export type {
 export * from './websocket';
 
 // Export error codes
-export { ErrorCode, DashboardError } from './error-codes';
+export { ErrorCode, DashboardError, createErrorResponse } from './error-codes';
 
 // Export MCP types
 export * from './mcp';

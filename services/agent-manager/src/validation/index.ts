@@ -15,10 +15,11 @@ export { SecureMessageBroker } from './secure-message-broker';
 export { 
   MessageValidator,
   messageValidator,
-  ValidationError,
   validateMessageOrThrow,
   VALIDATION_LIMITS
 } from './message-validator';
+import { ValidationError } from '@team-dashboard/utils';
+export { ValidationError };
 
 // Export test utilities for verification
 export { 
@@ -29,10 +30,11 @@ export {
 
 // Export types for TypeScript integration
 export type { 
-  ValidationResult,
   SecurityViolation,
   SecurityMetrics
 } from './secure-message-broker';
+import type { ValidationResult } from '@team-dashboard/utils';
+export type { ValidationResult };
 
 /**
  * Quick setup function to replace MessageBroker with SecureMessageBroker

@@ -11,10 +11,10 @@
 import { MessageBroker } from '../communication/message-broker';
 import { 
   messageValidator, 
-  ValidationError, 
-  ValidationResult,
-  validateMessageOrThrow 
+  validateMessageOrThrow,
+  ExtendedValidationResult
 } from './message-validator';
+import { ValidationError } from '@team-dashboard/utils';
 import {
   AgentMessage,
   BroadcastMessage,
@@ -103,7 +103,10 @@ export class SecureMessageBroker implements AgentCommunication {
     try {
       // Pre-validation security checks
       if (this.isAgentBlocked(message.from)) {
-        throw new ValidationError('from', message.from, 'Agent is blocked due to security violations', 'critical');
+        const error = new Error('Agent is blocked due to security violations');
+        (error as any).field = 'from';
+        (error as any).code = 'AGENT_BLOCKED';
+        throw error;
       }
 
       // Create temporary message for validation

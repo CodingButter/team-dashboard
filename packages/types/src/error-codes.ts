@@ -50,6 +50,9 @@ export enum ErrorCode {
   INVALID_PAYLOAD = 4005,
   SUBSCRIPTION_FAILED = 4006,
   CONNECTION_CLOSED = 4007,
+  RATE_LIMIT = 4008,
+  PAYLOAD_TOO_LARGE = 4009,
+  SECURITY_VIOLATION = 4010,
   
   // ============================================================================
   // Validation Errors (5xxx)
@@ -59,6 +62,8 @@ export enum ErrorCode {
   MISSING_REQUIRED_FIELD = 5003,
   INVALID_FORMAT = 5004,
   VALUE_OUT_OF_RANGE = 5005,
+  INVALID_JSON = 5006,
+  VALIDATION_SYSTEM_ERROR = 5007,
   
   // ============================================================================
   // Neo4j & Graph Errors (6xxx)
@@ -155,6 +160,9 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCode.INVALID_PAYLOAD]: 'Invalid message payload',
   [ErrorCode.SUBSCRIPTION_FAILED]: 'Subscription failed',
   [ErrorCode.CONNECTION_CLOSED]: 'Connection closed',
+  [ErrorCode.RATE_LIMIT]: 'Rate limit exceeded',
+  [ErrorCode.PAYLOAD_TOO_LARGE]: 'Payload size exceeds limit',
+  [ErrorCode.SECURITY_VIOLATION]: 'Security violation detected',
   
   // Validation
   [ErrorCode.VALIDATION_FAILED]: 'Validation failed',
@@ -162,6 +170,8 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCode.MISSING_REQUIRED_FIELD]: 'Missing required field',
   [ErrorCode.INVALID_FORMAT]: 'Invalid format',
   [ErrorCode.VALUE_OUT_OF_RANGE]: 'Value out of acceptable range',
+  [ErrorCode.INVALID_JSON]: 'Invalid JSON format',
+  [ErrorCode.VALIDATION_SYSTEM_ERROR]: 'Internal validation error',
   
   // Graph
   [ErrorCode.GRAPH_CONNECTION_FAILED]: 'Failed to connect to graph database',

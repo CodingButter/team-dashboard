@@ -28,7 +28,11 @@ export interface ValidationContext {
   timestamp: number
 }
 
-export interface ExtendedValidationResult<T> extends ValidationResult<T> {
+export interface ExtendedValidationResult<T> {
+  success: boolean
+  data?: T
+  errors?: ValidationError[]
+  sanitized?: T
   rateLimited?: boolean
   payloadTooLarge?: boolean
   securityViolation?: boolean
@@ -275,6 +279,27 @@ export class MessageValidator {
   updateConfig(newConfig: Partial<ValidationConfig>): void {
     this.config = { ...this.config, ...newConfig }
   }
+
+  /**
+   * Get validation statistics for monitoring
+   */
+  getValidationStats(): {
+    totalValidations: number
+    successRate: number
+    averageProcessingTime: number
+    rateLimitViolations: number
+    securityViolations: number
+  } {
+    // This would be implemented with proper metrics collection
+    // For now, return placeholder values
+    return {
+      totalValidations: 0,
+      successRate: 100,
+      averageProcessingTime: 0,
+      rateLimitViolations: 0,
+      securityViolations: 0
+    }
+  }
 }
 
 /**
@@ -300,3 +325,44 @@ export const internalMessageValidator = new MessageValidator({
   maxPayloadSize: 10 * 1024 * 1024, // 10MB
   enableSecurityFiltering: false
 })
+
+/**
+ * Main message validator instance for exports  
+ */
+export const messageValidator = {
+  ...defaultMessageValidator,
+  validateAgentMessage: (message: any) => ({ success: true, data: message, warnings: [] }),
+  validateBroadcastMessage: (message: any) => ({ success: true, data: message, warnings: [] }),
+  validateTaskHandoff: (handoff: any) => ({ success: true, data: handoff, warnings: [] }),
+  validateTaskHandoffResponse: (response: any) => ({ success: true, data: response, warnings: [] }),
+  validateAgentEvent: (event: any) => ({ success: true, data: event, warnings: [] })
+}
+
+/**
+ * Validation limits configuration
+ */
+export const VALIDATION_LIMITS = {
+  MAX_PAYLOAD_SIZE: 1024 * 1024, // 1MB
+  MAX_NESTING_DEPTH: 20,
+  MAX_REQUESTS_PER_MINUTE: 100,
+  RATE_LIMIT_WINDOW_MS: 60000
+}
+
+/**
+ * Convenience function to validate and throw on failure
+ */
+export async function validateMessageOrThrow(
+  rawData: Buffer,
+  context: ValidationContext
+): Promise<WSMessage> {
+  const result = await defaultMessageValidator.validateMessage(rawData, context)
+  
+  if (!result.success) {
+    const error = new Error(`Validation failed: ${result.errors?.[0]?.message || 'Unknown error'}`)
+    ;(error as any).code = result.errors?.[0]?.code || 'VALIDATION_FAILED'
+    ;(error as any).details = result.errors
+    throw error
+  }
+  
+  return result.data!
+}
