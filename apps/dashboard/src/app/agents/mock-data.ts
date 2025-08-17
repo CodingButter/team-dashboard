@@ -3,17 +3,7 @@
  * This file contains sample agent data for development and testing
  */
 
-export interface Agent {
-  id: string
-  name: string
-  model: 'claude-3-opus' | 'claude-3-sonnet'
-  status: 'starting' | 'running' | 'paused' | 'stopping' | 'stopped' | 'crashed'
-  workspace: string
-  uptime?: number
-  lastActivity?: number
-  cpu?: number
-  memory?: number
-}
+import { Agent } from '@team-dashboard/types';
 
 export const mockAgents: Agent[] = [
   {
@@ -22,10 +12,17 @@ export const mockAgents: Agent[] = [
     model: 'claude-3-sonnet',
     status: 'running',
     workspace: '/home/user/projects/frontend',
-    uptime: 3600,
-    lastActivity: Date.now() - 30000,
-    cpu: 12.5,
-    memory: 256 * 1024 * 1024,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    startedAt: new Date(Date.now() - 3600000).toISOString(),
+    lastActivity: new Date(Date.now() - 30000).toISOString(),
+    metrics: {
+      cpu: 12.5,
+      memory: 256,
+      threads: 4,
+      uptime: 3600,
+      apiCalls: 145,
+      tokensUsed: 12450
+    }
   },
   {
     id: 'agent-demo-002',
@@ -33,10 +30,17 @@ export const mockAgents: Agent[] = [
     model: 'claude-3-opus',
     status: 'paused',
     workspace: '/home/user/projects/backend',
-    uptime: 7200,
-    lastActivity: Date.now() - 300000,
-    cpu: 8.2,
-    memory: 512 * 1024 * 1024,
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    startedAt: new Date(Date.now() - 7200000).toISOString(),
+    lastActivity: new Date(Date.now() - 300000).toISOString(),
+    metrics: {
+      cpu: 8.2,
+      memory: 512,
+      threads: 6,
+      uptime: 7200,
+      apiCalls: 89,
+      tokensUsed: 23100
+    }
   },
   {
     id: 'agent-demo-003',
@@ -44,10 +48,17 @@ export const mockAgents: Agent[] = [
     model: 'claude-3-sonnet',
     status: 'running',
     workspace: '/home/user/projects/infra',
-    uptime: 1800,
-    lastActivity: Date.now() - 60000,
-    cpu: 15.8,
-    memory: 384 * 1024 * 1024,
+    createdAt: new Date(Date.now() - 43200000).toISOString(),
+    startedAt: new Date(Date.now() - 1800000).toISOString(),
+    lastActivity: new Date(Date.now() - 60000).toISOString(),
+    metrics: {
+      cpu: 15.8,
+      memory: 384,
+      threads: 8,
+      uptime: 1800,
+      apiCalls: 67,
+      tokensUsed: 8900
+    }
   },
   {
     id: 'agent-demo-004',
@@ -55,10 +66,17 @@ export const mockAgents: Agent[] = [
     model: 'claude-3-opus',
     status: 'stopped',
     workspace: '/home/user/projects/ml',
-    uptime: 0,
-    lastActivity: Date.now() - 3600000,
-    cpu: 0,
-    memory: 0,
+    createdAt: new Date(Date.now() - 259200000).toISOString(),
+    stoppedAt: new Date(Date.now() - 3600000).toISOString(),
+    lastActivity: new Date(Date.now() - 3600000).toISOString(),
+    metrics: {
+      cpu: 0,
+      memory: 0,
+      threads: 0,
+      uptime: 0,
+      apiCalls: 234,
+      tokensUsed: 45600
+    }
   },
   {
     id: 'agent-demo-005',
@@ -66,9 +84,16 @@ export const mockAgents: Agent[] = [
     model: 'claude-3-sonnet',
     status: 'crashed',
     workspace: '/home/user/projects/security',
-    uptime: 900,
-    lastActivity: Date.now() - 1800000,
-    cpu: 0,
-    memory: 128 * 1024 * 1024,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    startedAt: new Date(Date.now() - 1800000).toISOString(),
+    lastActivity: new Date(Date.now() - 1800000).toISOString(),
+    metrics: {
+      cpu: 0,
+      memory: 128,
+      threads: 2,
+      uptime: 900,
+      apiCalls: 23,
+      tokensUsed: 3400
+    }
   },
 ]

@@ -100,6 +100,9 @@ export interface SystemPrompt {
   version: number
   description?: string
   tags: string[]
+  category?: string
+  variables?: Record<string, any>
+  metadata?: Record<string, any>
   isDefault: boolean
   maxTokens: number
   createdAt: number
