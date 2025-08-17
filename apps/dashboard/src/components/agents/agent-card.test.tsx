@@ -23,7 +23,15 @@ const createMockAgent = (overrides = {}) => ({
   cpu: 25.5,
   memory: 157286400, // ~150MB
   configuration: {
+    id: 'config-123',
+    name: 'Test Agent Config',
+    model: 'gpt-4o',
+    systemPromptId: 'prompt-123',
     mcpServers: ['server1', 'server2'],
+    toolPermissions: {
+      'file_operations': 'require_approval' as const,
+      'web_access': 'always_allow' as const,
+    },
   },
   systemPrompt: 'You are a test agent',
   ...overrides,
