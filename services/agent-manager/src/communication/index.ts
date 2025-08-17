@@ -3,10 +3,11 @@
  * Exports for the inter-agent communication system
  */
 
+import { AgentCommunicationManager, type CommunicationManagerConfig } from './agent-communication-manager';
+
 export { RedisClient } from './redis-client';
 export { MessageBroker } from './message-broker';
-export { AgentCommunicationManager } from './agent-communication-manager';
-export type { CommunicationManagerConfig } from './agent-communication-manager';
+export { AgentCommunicationManager, type CommunicationManagerConfig } from './agent-communication-manager';
 export { CommunicationWebSocketIntegration } from './websocket-integration';
 
 // Re-export types for convenience
@@ -31,7 +32,7 @@ export type {
 /**
  * Default communication configuration
  */
-export const DEFAULT_COMMUNICATION_CONFIG: CommunicationManagerConfig = {
+export const DEFAULT_COMMUNICATION_CONFIG = {
   redis: {
     host: 'localhost',
     port: 6379,
@@ -58,8 +59,8 @@ export const DEFAULT_COMMUNICATION_CONFIG: CommunicationManagerConfig = {
 /**
  * Create and configure communication manager
  */
-export function createCommunicationManager(config?: Partial<CommunicationManagerConfig>): AgentCommunicationManager {
-  const finalConfig: CommunicationManagerConfig = {
+export function createCommunicationManager(config?: any) {
+  const finalConfig = {
     ...DEFAULT_COMMUNICATION_CONFIG,
     ...config,
     redis: {
@@ -80,5 +81,5 @@ export function createCommunicationManager(config?: Partial<CommunicationManager
     }
   };
 
-  return new AgentCommunicationManager(finalConfig);
+  return new AgentCommunicationManager(finalConfig as any);
 }

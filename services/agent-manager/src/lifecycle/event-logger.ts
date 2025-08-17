@@ -30,6 +30,8 @@ export interface LifecycleEvent {
 export type LifecycleEventType = 
   | 'agent:registered'
   | 'agent:starting'
+  | 'agent:ready'
+  | 'agent:spawned'
   | 'agent:started' 
   | 'agent:idle'
   | 'agent:busy'
@@ -37,6 +39,7 @@ export type LifecycleEventType =
   | 'agent:resumed'
   | 'agent:stopping'
   | 'agent:stopped'
+  | 'agent:exited'
   | 'agent:crashed'
   | 'agent:error'
   | 'agent:terminated'
@@ -194,6 +197,8 @@ export class AgentLifecycleEventLogger extends EventEmitter {
   private getEventTypeFromStatus(status: AgentStatus): LifecycleEventType {
     const statusMap: Record<AgentStatus, LifecycleEventType> = {
       'starting': 'agent:starting',
+      'ready': 'agent:ready',
+      'spawned': 'agent:spawned',
       'idle': 'agent:idle',
       'busy': 'agent:busy',
       'running': 'agent:started',
@@ -202,6 +207,7 @@ export class AgentLifecycleEventLogger extends EventEmitter {
       'stopped': 'agent:stopped',
       'error': 'agent:error',
       'crashed': 'agent:crashed',
+      'exited': 'agent:exited',
       'terminated': 'agent:terminated'
     };
 

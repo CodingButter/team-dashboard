@@ -241,11 +241,28 @@ export class AgentResourceMonitor extends EventEmitter {
    */
   sampleToResourceUsage(sample: ResourceSample): ResourceUsage {
     return {
-      memoryUsage: sample.memory.rss,
-      cpuUsage: sample.cpu.percent,
-      diskUsage: 0, // Not tracked in current implementation
-      networkIO: { in: sample.network.rxBytes, out: sample.network.txBytes },
-      timestamp: sample.timestamp
+      cpu: {
+        percent: sample.cpu.percent,
+        system: sample.cpu.system,
+        user: sample.cpu.user
+      },
+      memory: {
+        rss: sample.memory.rss,
+        heap: sample.memory.heap,
+        external: sample.memory.external
+      },
+      io: {
+        readBytes: sample.io.readBytes,
+        writeBytes: sample.io.writeBytes,
+        readOps: sample.io.readOps,
+        writeOps: sample.io.writeOps
+      },
+      network: {
+        rxBytes: sample.network.rxBytes,
+        txBytes: sample.network.txBytes,
+        rxPackets: sample.network.rxPackets || 0,
+        txPackets: sample.network.txPackets || 0
+      }
     }
   }
 }

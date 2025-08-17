@@ -175,7 +175,7 @@ export class IntegratedAgentLifecycleManager extends EventEmitter {
     const process = this.agents.get(agentId);
     const lifecycleState = this.lifecycleManager.getAgentState(agentId);
     const healthStatus = this.healthMonitor.getHealthStatus(agentId);
-    const resourceSample = this.resourceMonitor.getLatestSample(agentId);
+    // const resourceSample = this.resourceMonitor.getLatestSample(agentId); // TODO: Method not implemented
     
     if (!process) {
       return null;
@@ -190,7 +190,7 @@ export class IntegratedAgentLifecycleManager extends EventEmitter {
       },
       lifecycle: lifecycleState,
       health: healthStatus,
-      resources: resourceSample,
+      resources: null, // resourceSample TODO: Method not implemented
       restartCount: this.lifecycleManager.getRestartCount(agentId)
     };
   }
@@ -209,7 +209,8 @@ export class IntegratedAgentLifecycleManager extends EventEmitter {
   getStats(): LifecycleManagerStats {
     const allAgents = this.getAllAgentsInfo();
     const healthSummary = this.healthMonitor.getHealthSummary();
-    const resourceSummary = this.resourceMonitor.getResourceSummary();
+    // const resourceSummary = this.resourceMonitor.getResourceSummary(); // TODO: Method not implemented
+    const resourceSummary: any[] = [];
     
     const activeAgents = allAgents.filter(agent => 
       ['running', 'idle', 'busy'].includes(agent.process.status)
