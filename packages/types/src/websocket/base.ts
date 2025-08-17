@@ -33,6 +33,11 @@ export type MessageType =
   | 'subscribe:metrics'
   | 'subscribe:logs'
   | 'unsubscribe'
+  // Tool Approval Messages
+  | 'tool:approve'
+  | 'tool:deny'
+  | 'tool:batch_approve'
+  | 'tool:batch_deny'
   // Server to Client
   | 'agent:status'
   | 'agent:output'
@@ -40,6 +45,7 @@ export type MessageType =
   | 'agent:error'
   | 'metrics:update'
   | 'system:alert'
+  | 'tool:approval_required'
   | 'ack'
   | 'ping'
   | 'pong'
