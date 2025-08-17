@@ -21,11 +21,15 @@ export class DashboardWebSocketServer {
   private messageHandler: MessageHandler;
   private readonly maxConnections: number = 1000;
   private readonly rateLimitMap: Map<string, number[]> = new Map();
+  private readonly blockedIPs: Map<string, number> = new Map(); // IP -> block expiry timestamp
+  private readonly connectionAttempts: Map<string, number> = new Map(); // IP -> failed attempts
   private performanceMetrics = {
     totalConnections: 0,
     activeConnections: 0,
     messageCount: 0,
-    avgLatency: 0
+    avgLatency: 0,
+    blockedConnections: 0,
+    rateLimitedConnections: 0
   };
   
   constructor(private port: number = 3001) {
@@ -59,10 +63,19 @@ export class DashboardWebSocketServer {
         return;
       }
       
+      // Check if IP is blocked
+      if (this.isIPBlocked(clientIp)) {
+        // Silently drop connection without logging to prevent log spam
+        ws.close(1008, 'Blocked');
+        this.performanceMetrics.blockedConnections++;
+        return;
+      }
+      
       // Check rate limiting
       if (this.isRateLimited(clientIp)) {
-        console.warn(`[WS] Rate limited connection from: ${clientIp}`);
-        ws.close(1008, 'Rate limited');
+        this.handleRateLimitViolation(clientIp);
+        ws.close(1008, 'Rate limited - Please wait before reconnecting');
+        this.performanceMetrics.rateLimitedConnections++;
         return;
       }
       
@@ -133,12 +146,53 @@ export class DashboardWebSocketServer {
   }
   
   /**
+   * Check if IP is blocked
+   */
+  private isIPBlocked(clientIp: string): boolean {
+    const blockExpiry = this.blockedIPs.get(clientIp);
+    if (!blockExpiry) return false;
+    
+    const now = Date.now();
+    if (now < blockExpiry) {
+      return true;
+    }
+    
+    // Block expired, remove it
+    this.blockedIPs.delete(clientIp);
+    this.connectionAttempts.delete(clientIp);
+    return false;
+  }
+  
+  /**
+   * Handle rate limit violations with progressive blocking
+   */
+  private handleRateLimitViolation(clientIp: string): void {
+    const attempts = (this.connectionAttempts.get(clientIp) || 0) + 1;
+    this.connectionAttempts.set(clientIp, attempts);
+    
+    // Progressive blocking: 1 min, 5 min, 15 min, 1 hour, 24 hours
+    const blockDurations = [60000, 300000, 900000, 3600000, 86400000];
+    const blockIndex = Math.min(attempts - 1, blockDurations.length - 1);
+    
+    if (attempts >= 3) { // Start blocking after 3 violations
+      const blockDuration = blockDurations[blockIndex];
+      const blockExpiry = Date.now() + blockDuration;
+      this.blockedIPs.set(clientIp, blockExpiry);
+      
+      // Only log the first time we block, not on every attempt
+      if (attempts === 3) {
+        console.warn(`[WS] Blocking IP ${clientIp} for ${blockDuration / 1000} seconds due to repeated rate limit violations`);
+      }
+    }
+  }
+  
+  /**
    * Check if client IP is rate limited
    */
   private isRateLimited(clientIp: string): boolean {
     const now = Date.now();
     const windowMs = 60000; // 1 minute window
-    const maxConnections = 10; // Max 10 connections per minute per IP
+    const maxConnections = 5; // Reduced to 5 connections per minute per IP
     
     const timestamps = this.rateLimitMap.get(clientIp) || [];
     const recentTimestamps = timestamps.filter(ts => now - ts < windowMs);
@@ -150,10 +204,8 @@ export class DashboardWebSocketServer {
     recentTimestamps.push(now);
     this.rateLimitMap.set(clientIp, recentTimestamps);
     
-    // Clean up old entries
-    if (recentTimestamps.length > maxConnections) {
-      this.rateLimitMap.set(clientIp, recentTimestamps.slice(-maxConnections));
-    }
+    // Reset failed attempts on successful connection
+    this.connectionAttempts.delete(clientIp);
     
     return false;
   }
@@ -194,7 +246,13 @@ export class DashboardWebSocketServer {
       // Log performance metrics every 5 minutes
       console.log(`[WS] Performance: ${this.performanceMetrics.activeConnections} active, ` +
         `${this.performanceMetrics.messageCount} msgs, ` +
-        `${this.performanceMetrics.avgLatency.toFixed(2)}ms avg latency`);
+        `${this.performanceMetrics.avgLatency.toFixed(2)}ms avg latency, ` +
+        `${this.performanceMetrics.rateLimitedConnections} rate limited, ` +
+        `${this.performanceMetrics.blockedConnections} blocked`);
+      
+      // Reset counters
+      this.performanceMetrics.rateLimitedConnections = 0;
+      this.performanceMetrics.blockedConnections = 0;
         
     }, 5 * 60 * 1000); // Every 5 minutes
   }
