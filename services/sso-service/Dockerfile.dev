@@ -1,0 +1,49 @@
+# Development Dockerfile for Enterprise SSO Service
+FROM node:20-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    openssl \
+    ca-certificates \
+    tini
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY pnpm-lock.yaml* ./
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Create directories
+RUN mkdir -p logs certs
+
+# Generate self-signed certificates for development
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout certs/key.pem \
+    -out certs/cert.pem \
+    -subj "/C=US/ST=State/L=City/O=TeamDashboard/CN=localhost"
+
+# Set proper permissions
+RUN chmod 600 certs/key.pem && chmod 644 certs/cert.pem
+
+# Expose port
+EXPOSE 3006
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3006/health || exit 1
+
+# Use tini as init system
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start development server
+CMD ["pnpm", "run", "dev"]
