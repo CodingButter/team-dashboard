@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { ThemeToggle } from '../theme-toggle'
 
 export function Header() {
   return (
@@ -28,6 +29,9 @@ export function Header() {
               <span className="text-foreground font-medium">3/10</span>
             </div>
           </div>
+
+          {/* Theme Toggle */}
+          <ThemeToggle size="sm" />
 
           {/* Actions */}
           <div className="flex items-center space-x-2">
