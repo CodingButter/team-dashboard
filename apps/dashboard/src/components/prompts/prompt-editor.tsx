@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
-import { SystemPrompt } from '@team-dashboard/types'
+import { MCPSystemPrompt as SystemPrompt } from '@team-dashboard/types'
 
 interface PromptEditorProps {
   prompt?: SystemPrompt

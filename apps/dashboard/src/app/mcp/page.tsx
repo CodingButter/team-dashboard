@@ -109,7 +109,7 @@ export default function McpPage() {
       // const data = await response.json()
       
       // Mock for now
-      const updatedServer = { ...editingServer, ...serverData, updatedAt: new Date() }
+      const updatedServer: McpServer = { ...editingServer, ...serverData, updatedAt: new Date() } as McpServer
       setServers(prev => prev.map(s => s.id === editingServer.id ? updatedServer : s))
       setEditingServer(null)
       setShowForm(false)
@@ -172,7 +172,7 @@ export default function McpPage() {
     }
   }
 
-  const handleTestServer = async (serverId: string) => {
+  const handleTestServer = async (_serverId: string) => {
     try {
       // TODO: Replace with actual API call
       alert('Test connection feature will be implemented with the backend API')
@@ -181,7 +181,7 @@ export default function McpPage() {
     }
   }
 
-  const handleInstallTemplate = (template: McpServerTemplate) => {
+  const handleInstallTemplate = (_template: McpServerTemplate) => {
     setEditingServer(null)
     setActiveTab('servers')
     setShowForm(true)
@@ -299,7 +299,7 @@ export default function McpPage() {
                     status={serverStatuses[server.id]}
                     onConnect={handleConnectServer}
                     onDisconnect={handleDisconnectServer}
-                    onEdit={(id) => {
+                    onEdit={(id: string) => {
                       setEditingServer(servers.find(s => s.id === id) || null)
                       setShowForm(true)
                     }}

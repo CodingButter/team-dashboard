@@ -230,16 +230,17 @@ export default function ApprovalsPage() {
 
   // Set up WebSocket message handlers for new tool approval requests
   useEffect(() => {
-    const handleNewRequest = (message: any) => {
-      if (message.type === 'tool:approval_required') {
-        setRequests(prev => [message.payload, ...prev])
-        setStats(prev => ({
-          ...prev,
-          pending: prev.pending + 1,
-          total: prev.total + 1
-        }))
-      }
-    }
+    // TODO: Implement real WebSocket handling for new tool approval requests
+    // const handleNewRequest = (message: any) => {
+    //   if (message.type === 'tool:approval_required') {
+    //     setRequests(prev => [message.payload, ...prev])
+    //     setStats(prev => ({
+    //       ...prev,
+    //       pending: prev.pending + 1,
+    //       total: prev.total + 1
+    //     }))
+    //   }
+    // }
 
     // In a real implementation, you'd register this handler with the WebSocket
     // websocket.addMessageHandler('tool:approval_required', handleNewRequest)

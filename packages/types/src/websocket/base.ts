@@ -43,6 +43,11 @@ export type MessageType =
   | 'ack'
   | 'ping'
   | 'pong'
+  // Tool Approval Actions
+  | 'tool:approve'
+  | 'tool:deny'
+  | 'tool:batch_approve'
+  | 'tool:batch_deny'
   // Inter-Agent Communication
   | 'agent:message'
   | 'agent:broadcast'

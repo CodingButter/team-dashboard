@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
-import { AgentConfiguration, SystemPrompt, MCPServer, AgentModel } from '@team-dashboard/types'
+import { AgentConfiguration, MCPSystemPrompt as SystemPrompt, MCPServer, AgentModel } from '@team-dashboard/types'
 import { PromptEditor } from '../prompts/prompt-editor'
 
 interface AgentCreationWizardProps {

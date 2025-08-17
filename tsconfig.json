@@ -35,7 +35,8 @@
   "include": [
     "apps/**/*",
     "packages/**/*",
-    "services/**/*"
+    "services/**/*",
+    "test/**/*"
   ],
   "exclude": [
     "node_modules",
