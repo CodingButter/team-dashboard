@@ -57,3 +57,6 @@ export * from './communication';
 
 // Export Prompts types
 export * from './prompts';
+
+// Export validation pipeline for agent message security
+export * from './validation';

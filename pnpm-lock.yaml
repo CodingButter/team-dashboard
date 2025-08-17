@@ -187,6 +187,10 @@ importers:
         version: 5.9.2
 
   packages/types:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.3.3
