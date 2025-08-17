@@ -1,0 +1,30 @@
+FROM node:20-alpine
+
+# Install pnpm
+RUN npm install -g pnpm@8.15.1
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files for dependency installation
+COPY package.json pnpm-lock.yaml* ./
+COPY ../../packages /packages
+COPY ../../pnpm-workspace.yaml /pnpm-workspace.yaml
+
+# Install dependencies with cache mount for faster builds
+RUN --mount=type=cache,target=/root/.pnpm \
+    pnpm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Set environment variables for development
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV WATCHPACK_POLLING=true
+
+# Expose port
+EXPOSE 3000
+
+# Start development server with hot reload
+CMD ["pnpm", "dev"]

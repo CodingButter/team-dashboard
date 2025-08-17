@@ -1,0 +1,572 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  schedule:
+    # Run code quality checks weekly on Sundays at 1 AM UTC
+    - cron: '0 1 * * 0'
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "8"
+
+jobs:
+  # File size and complexity analysis
+  complexity-analysis:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run complexity analysis with code-health-mcp
+        run: |
+          echo "🔍 Running code health analysis..."
+          
+          # Install and run code-health-mcp tools
+          if command -v code-health >/dev/null 2>&1; then
+            code-health analyze --complexity-threshold 15 --max-lines 400 --max-lines-per-function 80
+          else
+            echo "Installing code-health analyzer..."
+            npm install -g @code-health/analyzer
+            code-health analyze --complexity-threshold 15 --max-lines 400 --max-lines-per-function 80
+          fi
+
+      - name: File size compliance check (200-line limit)
+        run: |
+          echo "📏 Checking file size compliance..."
+          
+          violations=0
+          max_lines=200
+          
+          find . -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | \
+          grep -v node_modules | grep -v dist | grep -v .next | grep -v coverage | \
+          while read file; do
+            lines=$(wc -l < "$file")
+            if [ $lines -gt $max_lines ]; then
+              echo "❌ File exceeds $max_lines lines: $file ($lines lines)"
+              violations=$((violations + 1))
+            fi
+          done
+          
+          if [ $violations -gt 0 ]; then
+            echo "❌ $violations files exceed the 200-line limit"
+            echo "Please refactor large files to improve maintainability"
+            exit 1
+          else
+            echo "✅ All files within 200-line limit"
+          fi
+
+      - name: Function complexity analysis
+        run: |
+          echo "🧮 Analyzing function complexity..."
+          
+          # Use ESLint complexity rules to check function complexity
+          npx eslint . --ext .ts,.tsx,.js,.jsx \
+            --rule '{"complexity": ["error", 10]}' \
+            --rule '{"max-lines-per-function": ["error", {"max": 80}]}' \
+            --rule '{"max-params": ["error", 5]}' \
+            --rule '{"max-depth": ["error", 4]}' \
+            --format json > complexity-report.json || true
+          
+          # Parse and report complexity issues
+          if [ -s complexity-report.json ]; then
+            echo "Complexity issues found:"
+            cat complexity-report.json | jq -r '.[] | select(.messages | length > 0) | .filePath + ": " + (.messages | length | tostring) + " issues"'
+          else
+            echo "✅ No complexity issues found"
+          fi
+
+      - name: Upload complexity report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: complexity-analysis-report
+          path: complexity-report.json
+          retention-days: 30
+
+  # Code coverage analysis
+  coverage-analysis:
+    name: Code Coverage Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: team_dashboard_test
+          POSTGRES_USER: dashboard_user
+          POSTGRES_PASSWORD: dashboard_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with detailed coverage
+        run: |
+          echo "🧪 Running comprehensive test coverage analysis..."
+          pnpm test:coverage
+        env:
+          DATABASE_URL: postgresql://dashboard_user:dashboard_pass@localhost:5432/team_dashboard_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Coverage threshold validation
+        run: |
+          echo "📊 Validating coverage thresholds..."
+          
+          # Extract coverage percentages from lcov.info
+          if [ -f "coverage/lcov.info" ]; then
+            # Calculate overall coverage
+            total_lines=$(grep -c "^LH:" coverage/lcov.info || echo "0")
+            covered_lines=$(grep "^LH:" coverage/lcov.info | cut -d: -f2 | paste -sd+ | bc || echo "0")
+            
+            if [ $total_lines -gt 0 ]; then
+              coverage_percent=$(echo "scale=2; $covered_lines * 100 / $total_lines" | bc)
+              echo "Overall line coverage: $coverage_percent%"
+              
+              # Minimum coverage threshold: 80%
+              if (( $(echo "$coverage_percent < 80" | bc -l) )); then
+                echo "❌ Coverage below 80% threshold: $coverage_percent%"
+                exit 1
+              else
+                echo "✅ Coverage meets 80% threshold: $coverage_percent%"
+              fi
+            fi
+          else
+            echo "⚠️ No coverage report found"
+          fi
+
+      - name: Generate coverage badges
+        run: |
+          echo "🏷️ Generating coverage badges..."
+          
+          # Generate coverage badge data
+          if [ -f "coverage/coverage-summary.json" ]; then
+            coverage=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')
+            echo "Coverage badge: $coverage%"
+          fi
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Coverage report for PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let coverageComment = '## 📊 Coverage Report\n\n';
+            
+            try {
+              const coverageData = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+              
+              coverageComment += '| Type | Coverage | Threshold | Status |\n';
+              coverageComment += '|------|----------|-----------|--------|\n';
+              
+              const metrics = ['lines', 'functions', 'branches', 'statements'];
+              const thresholds = { lines: 80, functions: 75, branches: 70, statements: 80 };
+              
+              metrics.forEach(metric => {
+                const pct = coverageData.total[metric].pct;
+                const threshold = thresholds[metric];
+                const status = pct >= threshold ? '✅' : '❌';
+                coverageComment += `| ${metric.charAt(0).toUpperCase() + metric.slice(1)} | ${pct}% | ${threshold}% | ${status} |\n`;
+              });
+              
+              coverageComment += '\n### Coverage Details\n';
+              coverageComment += `- **Total lines:** ${coverageData.total.lines.total}\n`;
+              coverageComment += `- **Covered lines:** ${coverageData.total.lines.covered}\n`;
+              coverageComment += `- **Uncovered lines:** ${coverageData.total.lines.total - coverageData.total.lines.covered}\n`;
+              
+            } catch (error) {
+              coverageComment += 'Coverage report not available.\n';
+            }
+            
+            coverageComment += '\n_Coverage analysis by @performance-engineer_';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverageComment
+            });
+
+  # Code duplication analysis
+  duplication-analysis:
+    name: Code Duplication Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install jscpd for duplication detection
+        run: npm install -g jscpd
+
+      - name: Run code duplication analysis
+        run: |
+          echo "🔍 Analyzing code duplication..."
+          
+          # Run jscpd with configuration
+          jscpd . \
+            --min-lines 5 \
+            --min-tokens 50 \
+            --threshold 10 \
+            --reporters html,json \
+            --output ./duplication-report \
+            --ignore "node_modules/**,dist/**,.next/**,coverage/**" \
+            --formats "typescript,javascript,tsx,jsx"
+
+      - name: Duplication threshold check
+        run: |
+          echo "📊 Checking duplication thresholds..."
+          
+          if [ -f "./duplication-report/jscpd-report.json" ]; then
+            duplication_percent=$(cat ./duplication-report/jscpd-report.json | jq -r '.statistics.total.percentage')
+            echo "Code duplication: $duplication_percent%"
+            
+            # Threshold: max 5% duplication
+            if (( $(echo "$duplication_percent > 5" | bc -l) )); then
+              echo "❌ Code duplication exceeds 5% threshold: $duplication_percent%"
+              exit 1
+            else
+              echo "✅ Code duplication within acceptable limits: $duplication_percent%"
+            fi
+          else
+            echo "⚠️ Duplication report not generated"
+          fi
+
+      - name: Upload duplication report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-duplication-report
+          path: duplication-report/
+          retention-days: 30
+
+  # Dependency analysis
+  dependency-analysis:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Analyze bundle size impact
+        run: |
+          echo "📦 Analyzing dependency bundle impact..."
+          
+          # Install bundle analyzer
+          npm install -g webpack-bundle-analyzer
+          
+          # Analyze dashboard bundle
+          if [ -f "apps/dashboard/package.json" ]; then
+            cd apps/dashboard
+            if [ -f ".next/analyze/client.json" ]; then
+              echo "Dashboard bundle analysis available"
+            else
+              echo "Building bundle analysis..."
+              pnpm build
+            fi
+            cd ../..
+          fi
+
+      - name: Dependency tree analysis
+        run: |
+          echo "🌳 Analyzing dependency tree..."
+          
+          # Check for duplicate dependencies
+          pnpm list --depth=0 > dependency-tree.txt
+          
+          # Look for potential issues
+          echo "Checking for common dependency issues..."
+          
+          # Check for multiple versions of the same package
+          duplicates=$(pnpm list --depth=Infinity | grep -E "├── |└── " | cut -d' ' -f2- | sort | uniq -d | wc -l)
+          echo "Potential duplicate dependencies: $duplicates"
+          
+          if [ $duplicates -gt 5 ]; then
+            echo "⚠️ High number of potential duplicate dependencies detected"
+          fi
+
+      - name: Outdated dependencies check
+        run: |
+          echo "📅 Checking for outdated dependencies..."
+          
+          # Check for outdated packages
+          pnpm outdated > outdated-deps.txt || true
+          
+          if [ -s outdated-deps.txt ]; then
+            echo "Outdated dependencies found:"
+            cat outdated-deps.txt
+          else
+            echo "✅ All dependencies are up to date"
+          fi
+
+      - name: Upload dependency analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-analysis
+          path: |
+            dependency-tree.txt
+            outdated-deps.txt
+          retention-days: 30
+
+  # Performance impact analysis
+  performance-impact:
+    name: Performance Impact Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and analyze current PR
+        run: |
+          echo "🔍 Analyzing performance impact of PR..."
+          
+          # Build current branch
+          pnpm build
+          
+          # Calculate current bundle sizes
+          if [ -d "apps/dashboard/.next/static" ]; then
+            current_size=$(du -sb apps/dashboard/.next/static | cut -f1)
+            echo "current_bundle_size=$current_size" >> $GITHUB_ENV
+            echo "Current bundle size: $current_size bytes"
+          fi
+
+      - name: Checkout base branch for comparison
+        run: |
+          echo "🔄 Checking out base branch for comparison..."
+          
+          # Fetch base branch
+          git fetch origin ${{ github.base_ref }}
+          
+          # Stash current changes
+          git stash
+          
+          # Checkout base branch
+          git checkout origin/${{ github.base_ref }}
+          
+          # Install and build base
+          pnpm install --frozen-lockfile
+          pnpm build
+          
+          # Calculate base bundle sizes
+          if [ -d "apps/dashboard/.next/static" ]; then
+            base_size=$(du -sb apps/dashboard/.next/static | cut -f1)
+            echo "base_bundle_size=$base_size" >> $GITHUB_ENV
+            echo "Base bundle size: $base_size bytes"
+          fi
+
+      - name: Performance impact report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const currentSize = parseInt(process.env.current_bundle_size || '0');
+            const baseSize = parseInt(process.env.base_bundle_size || '0');
+            
+            let report = '## 📊 Performance Impact Analysis\n\n';
+            
+            if (currentSize > 0 && baseSize > 0) {
+              const sizeDiff = currentSize - baseSize;
+              const percentChange = ((sizeDiff / baseSize) * 100).toFixed(2);
+              
+              report += '### Bundle Size Analysis\n';
+              report += `- **Base size:** ${(baseSize / 1024).toFixed(2)} KB\n`;
+              report += `- **Current size:** ${(currentSize / 1024).toFixed(2)} KB\n`;
+              report += `- **Difference:** ${sizeDiff > 0 ? '+' : ''}${(sizeDiff / 1024).toFixed(2)} KB (${percentChange}%)\n\n`;
+              
+              if (Math.abs(percentChange) > 10) {
+                report += '⚠️ **Significant bundle size change detected!**\n';
+                report += sizeDiff > 0 ? 
+                  'Consider optimizing imports and removing unused dependencies.\n' :
+                  'Great job reducing bundle size!\n';
+              } else {
+                report += '✅ Bundle size change is within acceptable limits.\n';
+              }
+            } else {
+              report += 'Bundle size comparison not available.\n';
+            }
+            
+            report += '\n### Performance Recommendations\n';
+            report += '- Ensure new dependencies are tree-shakeable\n';
+            report += '- Use dynamic imports for large components\n';
+            report += '- Optimize images and assets\n';
+            report += '- Consider code splitting for better performance\n';
+            
+            report += '\n_Performance impact analysis by @performance-engineer_';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+
+  # Quality gates summary
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: [complexity-analysis, coverage-analysis, duplication-analysis, dependency-analysis]
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Quality gates summary
+        run: |
+          echo "🚪 Code Quality Gates Summary"
+          echo "============================="
+          echo ""
+          echo "**Gate Results:**"
+          echo "- Complexity Analysis: ${{ needs.complexity-analysis.result }}"
+          echo "- Coverage Analysis: ${{ needs.coverage-analysis.result }}"
+          echo "- Duplication Analysis: ${{ needs.duplication-analysis.result }}"
+          echo "- Dependency Analysis: ${{ needs.dependency-analysis.result }}"
+          echo ""
+          
+          # Calculate quality score
+          failed_gates=0
+          total_gates=4
+          
+          if [ "${{ needs.complexity-analysis.result }}" != "success" ]; then
+            failed_gates=$((failed_gates + 1))
+          fi
+          
+          if [ "${{ needs.coverage-analysis.result }}" != "success" ]; then
+            failed_gates=$((failed_gates + 1))
+          fi
+          
+          if [ "${{ needs.duplication-analysis.result }}" != "success" ]; then
+            failed_gates=$((failed_gates + 1))
+          fi
+          
+          if [ "${{ needs.dependency-analysis.result }}" != "success" ]; then
+            failed_gates=$((failed_gates + 1))
+          fi
+          
+          quality_score=$(( (total_gates - failed_gates) * 100 / total_gates ))
+          echo "**Quality Score: ${quality_score}%**"
+          
+          if [ $failed_gates -eq 0 ]; then
+            echo "🎉 All quality gates passed!"
+          elif [ $quality_score -ge 75 ]; then
+            echo "✅ Good code quality"
+          else
+            echo "❌ Code quality needs improvement"
+            echo "Failed gates: $failed_gates/$total_gates"
+            exit 1
+          fi
+
+      - name: Quality metrics storage
+        run: |
+          echo "💾 Storing quality metrics..."
+          
+          # Store quality metrics for trending
+          cat > quality-metrics.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref }}",
+            "quality_score": $quality_score,
+            "gates": {
+              "complexity": "${{ needs.complexity-analysis.result }}",
+              "coverage": "${{ needs.coverage-analysis.result }}",
+              "duplication": "${{ needs.duplication-analysis.result }}",
+              "dependency": "${{ needs.dependency-analysis.result }}"
+            }
+          }
+          EOF
+          
+          echo "Quality metrics saved for commit ${{ github.sha }}"

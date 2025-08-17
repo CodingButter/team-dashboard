@@ -37,8 +37,16 @@ export interface ConversationMemory {
   messages: ChatCompletionMessageParam[];
   totalTokens: number;
   totalCost: number;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: number | Date;
+  updatedAt: number | Date;
+}
+
+export interface PruningStrategy {
+  type: 'recency' | 'relevance' | 'hybrid';
+  maxMessages?: number;
+  maxTokens?: number;
+  relevanceThreshold?: number;
+  contextQuery?: string;
 }
 
 export interface UsageMetrics {

@@ -60,3 +60,12 @@ export * from './prompts';
 
 // Export validation pipeline for agent message security
 export * from './validation';
+
+// Export workflow types
+export type { 
+  WorkflowTask, 
+  WorkflowTransition, 
+  Workflow, 
+  WorkflowStatus 
+} from './workflow';
+export { WorkflowState, WorkflowTaskStatus } from './workflow';

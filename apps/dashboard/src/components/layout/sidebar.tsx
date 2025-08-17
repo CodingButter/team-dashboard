@@ -15,6 +15,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { name: 'Tool Approvals', href: '/approvals', icon: '✅' },
     { name: 'MCP Servers', href: '/mcp', icon: '🔌' },
     { name: 'System Monitor', href: '/system', icon: '📊' },
+    { name: 'Real-time Monitoring', href: '/monitoring', icon: '📈' },
     { name: 'Settings', href: '/settings', icon: '⚙️' },
   ]
 
