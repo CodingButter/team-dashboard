@@ -8,7 +8,6 @@ import {
   AgentProcess, 
   AgentSpawnConfig, 
   AgentStatus,
-  ResourceLimits,
   HealthCheckConfig
 } from '@team-dashboard/types';
 

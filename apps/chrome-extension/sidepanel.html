@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Dashboard</title>
+    <link rel="stylesheet" href="styles/sidepanel.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1 class="title">Team Dashboard</h1>
+            <div class="status-indicator" id="connectionStatus">
+                <span class="status-dot" id="statusDot"></span>
+                <span class="status-text" id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="agents">Agents</button>
+            <button class="nav-tab" data-tab="dashboard">Dashboard</button>
+            <button class="nav-tab" data-tab="settings">Settings</button>
+        </nav>
+
+        <main class="content">
+            <!-- Agents Tab -->
+            <div id="agents-tab" class="tab-content active">
+                <div class="section">
+                    <h2>Active Agents</h2>
+                    <div id="agentsList" class="agents-list">
+                        <div class="loading">Loading agents...</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Quick Actions</h2>
+                    <div class="quick-actions">
+                        <button class="action-btn" id="syncBtn">
+                            <span class="btn-icon">🔄</span>
+                            Sync Data
+                        </button>
+                        <button class="action-btn" id="openDashboardBtn">
+                            <span class="btn-icon">🌐</span>
+                            Open Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Tab -->
+            <div id="dashboard-tab" class="tab-content">
+                <div class="section">
+                    <h2>Team Overview</h2>
+                    <div id="teamOverview" class="team-overview">
+                        <div class="loading">Loading overview...</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Recent Activity</h2>
+                    <div id="recentActivity" class="activity-list">
+                        <div class="loading">Loading activity...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-content">
+                <div class="section">
+                    <h2>Extension Settings</h2>
+                    <div class="settings-group">
+                        <label class="setting-item">
+                            <input type="checkbox" id="autoSyncSetting">
+                            <span class="setting-label">Auto-sync with dashboard</span>
+                        </label>
+                        
+                        <label class="setting-item">
+                            <input type="checkbox" id="notificationsSetting">
+                            <span class="setting-label">Enable notifications</span>
+                        </label>
+                        
+                        <label class="setting-item">
+                            <input type="checkbox" id="sidePanelSetting">
+                            <span class="setting-label">Show side panel</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Dashboard Connection</h2>
+                    <div class="connection-settings">
+                        <label class="setting-item">
+                            <span class="setting-label">Dashboard URL:</span>
+                            <input type="text" id="dashboardUrl" placeholder="http://localhost:3000">
+                        </label>
+                        <button class="action-btn" id="testConnectionBtn">Test Connection</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Storage Management</h2>
+                    <div class="storage-info">
+                        <div class="storage-usage" id="storageUsage">
+                            <span>Loading storage info...</span>
+                        </div>
+                        <div class="storage-actions">
+                            <button class="action-btn secondary" id="clearStorageBtn">Clear Data</button>
+                            <button class="action-btn secondary" id="exportDataBtn">Export Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Error</h3>
+                <button class="close-btn" id="closeErrorModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="action-btn" id="dismissErrorBtn">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Success</h3>
+                <button class="close-btn" id="closeSuccessModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="successMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="action-btn" id="dismissSuccessBtn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html>

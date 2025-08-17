@@ -1,5 +1,7 @@
 export { OpenAIService } from './openai-service';
 export { ConversationManager } from './memory/conversation-manager';
+export { EnhancedConversationManager } from './memory/enhanced-conversation-memory';
+export { DatabaseConnection, createDatabaseConfig } from './database/connection';
 export { DEFAULT_TOOLS, getToolByName } from './tools';
 export { 
   createOpenAIConfig,
@@ -30,9 +32,17 @@ export type {
   StreamChunk,
   ToolCall,
   ConversationMemory,
+  PruningStrategy,
   UsageMetrics,
   PerformanceMetrics,
   FunctionToolDefinition,
   RetryConfig
 } from './types';
 export type { ConversationManagerConfig } from './memory/conversation-manager';
+export type { 
+  EnhancedConversationMemoryConfig,
+  EnhancedConversationMemory,
+  ConversationMessage,
+  ConversationBranch 
+} from './memory/enhanced-conversation-memory';
+export type { DatabaseConfig } from './database/connection';

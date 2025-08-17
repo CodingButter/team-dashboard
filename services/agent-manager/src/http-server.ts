@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import OpenAIAgentManager, { OpenAIAgentConfig } from './agents/openai-agent-manager.js';
 import { v4 as uuidv4 } from 'uuid';
 import { registerWorkflowRoutes } from './workflow/index.js';
+import { registerBatchRoutes } from './routes/batch-routes.js';
 
 const fastify = Fastify({
   logger: {
@@ -30,6 +31,9 @@ fastify.register(require('@fastify/cors'), {
 
 // Register workflow routes
 fastify.register(registerWorkflowRoutes);
+
+// Register batch processing routes
+fastify.register(registerBatchRoutes);
 
 // Routes
 fastify.register(async function (fastify) {
@@ -247,6 +251,15 @@ const start = async () => {
     console.log('  POST   /api/workflows/:id/tasks/:taskId/assign');
     console.log('  GET    /api/agents/:agentId/tasks');
     console.log('  GET    /api/workflows/:id/transitions');
+    console.log('\nBatch processing endpoints:');
+    console.log('  POST   /batch');
+    console.log('  GET    /batch/:id');
+    console.log('  DELETE /batch/:id');
+    console.log('  POST   /batch/spawn');
+    console.log('  POST   /batch/terminate');
+    console.log('  GET    /subscription/:userId');
+    console.log('  PUT    /subscription/:userId');
+    console.log('  GET    /batch/metrics');
   } catch (error) {
     fastify.log.error(error);
     process.exit(1);

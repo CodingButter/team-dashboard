@@ -78,8 +78,9 @@ describe('HttpTransport', () => {
       }
     };
 
-    mockFetch.mockImplementation((url: any) => {
-      if (typeof url === 'string' && url.includes('/sse')) {
+    mockFetch.mockImplementation((url: any, _init?: any) => {
+      const urlString = typeof url === 'string' ? url : url.toString();
+      if (urlString.includes('/sse')) {
         return Promise.resolve(mockSSEResponse as any);
       }
       return Promise.resolve(mockResponse as any);
@@ -311,7 +312,7 @@ describe('HttpTransport', () => {
   describe('Health Checks', () => {
     it('should perform health checks successfully', async () => {
       const healthResponse = { ...mockResponse };
-      mockFetch.mockResolvedValue(healthResponse as any);
+      mockFetch.mockResolvedValueOnce(healthResponse as any);
       
       const result = await transport.healthCheck();
       

@@ -3,10 +3,13 @@
  * Exports for the inter-agent communication system
  */
 
+import type { CommunicationManagerConfig } from './agent-communication-manager';
+import { AgentCommunicationManager } from './agent-communication-manager';
+
 export { RedisClient } from './redis-client';
 export { MessageBroker } from './message-broker';
-export { AgentCommunicationManager } from './agent-communication-manager';
-export type { CommunicationManagerConfig } from './agent-communication-manager';
+export { AgentCommunicationManager };
+export type { CommunicationManagerConfig };
 export { CommunicationWebSocketIntegration } from './websocket-integration';
 
 // Re-export types for convenience

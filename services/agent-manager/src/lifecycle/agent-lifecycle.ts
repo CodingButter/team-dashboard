@@ -5,10 +5,7 @@
 
 import { EventEmitter } from 'events';
 import { 
-  AgentProcess, 
-  AgentSpawnConfig, 
   AgentStatus,
-  ResourceUsage,
   AgentProcessEventData 
 } from '@team-dashboard/types';
 
@@ -157,7 +154,7 @@ export class AgentLifecycleManager extends EventEmitter {
   /**
    * Handle agent failure with restart logic
    */
-  private async handleAgentFailure(agentId: string, reason?: string): Promise<void> {
+  private async handleAgentFailure(agentId: string, _reason?: string): Promise<void> {
     const state = this.agents.get(agentId);
     if (!state || !this.restartPolicy.enabled) {
       return;
@@ -301,16 +298,19 @@ export class AgentLifecycleManager extends EventEmitter {
    */
   private isValidTransition(from: AgentStatus, to: AgentStatus): boolean {
     const validTransitions: Record<AgentStatus, AgentStatus[]> = {
-      'starting': ['idle', 'running', 'busy', 'error', 'crashed', 'terminated'],
+      'starting': ['idle', 'running', 'busy', 'error', 'crashed', 'terminated', 'ready'],
       'idle': ['busy', 'running', 'paused', 'stopping', 'error', 'crashed', 'terminated'],
       'busy': ['idle', 'running', 'paused', 'stopping', 'error', 'crashed', 'terminated'],
       'running': ['idle', 'busy', 'paused', 'stopping', 'error', 'crashed', 'terminated'],
       'paused': ['idle', 'busy', 'running', 'stopping', 'stopped', 'error', 'crashed', 'terminated'],
-      'stopping': ['stopped', 'terminated', 'error', 'crashed'],
+      'stopping': ['stopped', 'terminated', 'error', 'crashed', 'exited'],
       'stopped': ['starting', 'terminated'],
       'error': ['starting', 'terminated', 'crashed'],
       'crashed': ['starting', 'terminated'],
-      'terminated': [] // Terminal state
+      'terminated': [], // Terminal state
+      'ready': ['idle', 'busy', 'running', 'error', 'crashed', 'terminated'],
+      'spawned': ['ready', 'starting', 'error', 'crashed', 'terminated'],
+      'exited': ['starting', 'terminated']
     };
 
     return validTransitions[from]?.includes(to) || false;
