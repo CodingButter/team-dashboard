@@ -37,6 +37,12 @@ export function useWebSocket(): UseWebSocketReturn {
   const socketRef = useRef<Socket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
   const messageHandlersRef = useRef<Map<MessageType, (msg: WSMessage) => void>>(new Map())
+  
+  // Exponential backoff state for intelligent reconnection
+  const reconnectAttempts = useRef<number>(0)
+  const maxReconnectAttempts = useRef<number>(10)
+  const baseReconnectDelay = useRef<number>(1000) // Start with 1 second
+  const maxReconnectDelay = useRef<number>(60000) // Cap at 1 minute
 
   const connect = useCallback(() => {
     if (socketRef.current?.connected) return
@@ -52,6 +58,9 @@ export function useWebSocket(): UseWebSocketReturn {
       socket.on('connect', () => {
         console.log('WebSocket connected')
         setState(prev => ({ ...prev, connected: true, reconnecting: false, error: null }))
+        
+        // Reset reconnection attempts on successful connection
+        reconnectAttempts.current = 0
         
         // Send authentication message
         const authMessage = MessageFactory.createAuth('dummy-jwt-token', `client-${Date.now()}`)
@@ -93,22 +102,46 @@ export function useWebSocket(): UseWebSocketReturn {
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = undefined
     }
     if (socketRef.current) {
       socketRef.current.disconnect()
       socketRef.current = null
     }
+    // Reset reconnection attempts on manual disconnect
+    reconnectAttempts.current = 0
     setState(prev => ({ ...prev, connected: false, reconnecting: false }))
   }, [])
 
   const scheduleReconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) return
     
+    // Check if we've exceeded max attempts
+    if (reconnectAttempts.current >= maxReconnectAttempts.current) {
+      console.warn('Max reconnection attempts reached, stopping reconnection')
+      setState(prev => ({ ...prev, reconnecting: false, error: 'Connection failed after maximum attempts' }))
+      return
+    }
+    
     setState(prev => ({ ...prev, reconnecting: true }))
+    
+    // Calculate exponential backoff delay: min(baseDelay * 2^attempts, maxDelay)
+    const delay = Math.min(
+      baseReconnectDelay.current * Math.pow(2, reconnectAttempts.current),
+      maxReconnectDelay.current
+    )
+    
+    // Add jitter to prevent thundering herd: ±25% random variance
+    const jitter = delay * 0.25 * (Math.random() * 2 - 1)
+    const finalDelay = Math.max(1000, delay + jitter) // Minimum 1 second
+    
+    console.log(`WebSocket reconnecting in ${Math.round(finalDelay/1000)}s (attempt ${reconnectAttempts.current + 1}/${maxReconnectAttempts.current})`)
+    
     reconnectTimeoutRef.current = setTimeout(() => {
       reconnectTimeoutRef.current = undefined
+      reconnectAttempts.current++
       connect()
-    }, 2000) // 2 second reconnect delay
+    }, finalDelay)
   }, [connect])
 
   const sendMessage = useCallback((message: WSMessage) => {
