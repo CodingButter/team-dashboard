@@ -1,0 +1,5 @@
+Agent Name,AI Model,Directory Path,Labels,Memory MB,CPU Count,Auto Start
+FrontendExpert,claude-3-sonnet,/workspace/frontend,"ui,react",3072,3,yes
+BackendSpecialist,gpt-4-turbo,/workspace/backend,"api,database",4096,4,no
+DevOpsEngineer,claude-3-haiku,/workspace/devops,"deployment,monitoring",2048,2,1
+FullStackDev,gpt-4o,/workspace/fullstack,"frontend,backend",6144,6,0

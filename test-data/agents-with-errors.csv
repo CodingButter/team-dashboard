@@ -1,0 +1,6 @@
+name,model,workspace,tags,memoryLimit,cpuCores,autoStart
+ValidAgent,claude-3-sonnet,/workspace/valid,testing,2048,2,true
+,gpt-4o,/workspace/missing-name,error,2048,2,false
+DuplicateName,invalid-model,/workspace/invalid-model,error,not-a-number,not-a-number,maybe
+DuplicateName,claude-3-haiku,/workspace/duplicate,error,1024,1,true
+AgentWithQuotes,"claude-3-sonnet","/workspace/with spaces","tag1,tag2",2048,2,true

@@ -1,0 +1,6 @@
+name,model,workspace,tags
+ValidAgent,claude-3-sonnet,/workspace/valid,testing
+"Unclosed quote,gpt-4o,/workspace/unclosed
+MissingColumns,claude-3-haiku
+ExtraCommas,gpt-4o-mini,/workspace/extra,tag1,tag2,tag3,unexpected
+NormalAgent,claude-3-sonnet,/workspace/normal,standard

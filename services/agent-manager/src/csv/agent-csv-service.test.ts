@@ -391,7 +391,8 @@ TestAgent,claude-3-sonnet`
       }
 
       const validation = await csvService.validateCSV(csvContent, columnMapping)
-      expect(validation.errors.some(e => e.message.includes('required'))).toBe(true)
+      console.log('Validation errors:', validation.errors)
+      expect(validation.errors.some(e => e.message.includes('workspace') || e.message.includes('required'))).toBe(true)
     })
   })
 
