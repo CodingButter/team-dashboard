@@ -15,6 +15,7 @@ export * from './tasks';
 export * from './github';
 export * from './logs';
 export * from './alerts';
+export * from './csv';
 
 // Import endpoint interfaces for consolidated API client
 import { AgentApiEndpoints } from './agents';
