@@ -7,8 +7,7 @@ import { EventEmitter } from 'events';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { 
-  AgentStatus,
-  AgentProcessEventData
+  AgentStatus
 } from '@team-dashboard/types';
 
 export interface LifecycleEvent {
@@ -40,6 +39,9 @@ export type LifecycleEventType =
   | 'agent:crashed'
   | 'agent:error'
   | 'agent:terminated'
+  | 'agent:ready'
+  | 'agent:spawned'
+  | 'agent:exited'
   | 'agent:restart_attempt'
   | 'agent:restart_success'
   | 'agent:restart_failed'
@@ -202,7 +204,10 @@ export class AgentLifecycleEventLogger extends EventEmitter {
       'stopped': 'agent:stopped',
       'error': 'agent:error',
       'crashed': 'agent:crashed',
-      'terminated': 'agent:terminated'
+      'terminated': 'agent:terminated',
+      'ready': 'agent:ready',
+      'spawned': 'agent:spawned',
+      'exited': 'agent:exited'
     };
 
     return statusMap[status] || 'agent:error';

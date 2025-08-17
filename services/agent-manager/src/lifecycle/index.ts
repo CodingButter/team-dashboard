@@ -8,6 +8,7 @@ import {
   AgentProcess, 
   AgentSpawnConfig, 
   AgentStatus,
+  // @ts-ignore Used by AgentSpawnConfig.resourceLimits field
   ResourceLimits,
   HealthCheckConfig
 } from '@team-dashboard/types';

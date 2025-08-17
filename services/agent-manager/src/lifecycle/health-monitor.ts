@@ -8,8 +8,7 @@ import {
   AgentProcess, 
   HealthCheckConfig, 
   AgentHealthStatus, 
-  HealthCheck,
-  AgentStatus 
+  HealthCheck
 } from '@team-dashboard/types';
 
 export interface HealthMetrics {
@@ -233,7 +232,7 @@ export class AgentHealthMonitor extends EventEmitter {
   /**
    * Perform ping check to verify process is alive
    */
-  private async performPingCheck(agentId: string, process: AgentProcess): Promise<HealthCheck> {
+  private async performPingCheck(_agentId: string, process: AgentProcess): Promise<HealthCheck> {
     const startTime = Date.now();
     
     try {
@@ -273,7 +272,7 @@ export class AgentHealthMonitor extends EventEmitter {
         type: 'ping',
         success: false,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -281,7 +280,7 @@ export class AgentHealthMonitor extends EventEmitter {
   /**
    * Perform resource usage check
    */
-  private async performResourceCheck(agentId: string, process: AgentProcess): Promise<HealthCheck> {
+  private async performResourceCheck(_agentId: string, process: AgentProcess): Promise<HealthCheck> {
     const startTime = Date.now();
     
     try {
@@ -322,7 +321,7 @@ export class AgentHealthMonitor extends EventEmitter {
         type: 'resource',
         success: false,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -330,7 +329,7 @@ export class AgentHealthMonitor extends EventEmitter {
   /**
    * Perform responsiveness check by sending a test command
    */
-  private async performResponsivenessCheck(agentId: string, process: AgentProcess): Promise<HealthCheck> {
+  private async performResponsivenessCheck(_agentId: string, process: AgentProcess): Promise<HealthCheck> {
     const startTime = Date.now();
     
     return new Promise((resolve) => {
@@ -378,7 +377,7 @@ export class AgentHealthMonitor extends EventEmitter {
           type: 'responsiveness',
           success: false,
           duration: Date.now() - startTime,
-          details: { error: error.message }
+          details: { error: (error as Error).message }
         });
       }
     });

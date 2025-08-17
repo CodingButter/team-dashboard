@@ -5,10 +5,7 @@
 
 import { EventEmitter } from 'events';
 import { 
-  AgentProcess, 
-  AgentSpawnConfig, 
   AgentStatus,
-  ResourceUsage,
   AgentProcessEventData 
 } from '@team-dashboard/types';
 
@@ -157,7 +154,7 @@ export class AgentLifecycleManager extends EventEmitter {
   /**
    * Handle agent failure with restart logic
    */
-  private async handleAgentFailure(agentId: string, reason?: string): Promise<void> {
+  private async handleAgentFailure(agentId: string, _reason?: string): Promise<void> {
     const state = this.agents.get(agentId);
     if (!state || !this.restartPolicy.enabled) {
       return;
@@ -310,7 +307,10 @@ export class AgentLifecycleManager extends EventEmitter {
       'stopped': ['starting', 'terminated'],
       'error': ['starting', 'terminated', 'crashed'],
       'crashed': ['starting', 'terminated'],
-      'terminated': [] // Terminal state
+      'terminated': [], // Terminal state
+      'ready': ['starting', 'idle', 'running', 'busy', 'paused', 'stopping', 'error', 'crashed', 'terminated'],
+      'spawned': ['ready', 'starting', 'idle', 'running', 'busy', 'error', 'crashed', 'terminated'],
+      'exited': ['terminated'] // Terminal state
     };
 
     return validTransitions[from]?.includes(to) || false;

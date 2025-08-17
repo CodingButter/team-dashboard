@@ -6,7 +6,6 @@
 import { EventEmitter } from 'events';
 import * as os from 'os';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import { 
   AgentProcess, 
   ResourceUsage, 
@@ -417,7 +416,7 @@ export class AgentResourceMonitor extends EventEmitter {
   private async getDiskUsage(): Promise<{ usage: number; freeSpace: number; totalSpace: number; }> {
     try {
       // Use cached system info for performance
-      const stats = await fs.stat(process.cwd());
+      await fs.stat(process.cwd()); // Check if directory exists
       // This is simplified - would need statvfs for accurate disk usage
       const totalSpace = this.systemInfo.totalMemory * 10; // Mock: assume disk is 10x memory
       const freeSpace = totalSpace * 0.7; // Mock: 70% free

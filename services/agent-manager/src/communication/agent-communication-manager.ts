@@ -38,13 +38,11 @@ export interface CommunicationManagerConfig {
 
 export class AgentCommunicationManager extends EventEmitter {
   private broker: MessageBroker;
-  private config: CommunicationManagerConfig;
   private registeredAgents: Map<AgentId, { status: 'active' | 'inactive'; lastSeen: number }> = new Map();
   private activeHandoffs: Map<string, TaskHandoff> = new Map();
 
   constructor(config: CommunicationManagerConfig) {
     super();
-    this.config = config;
     this.broker = new MessageBroker(config as CommunicationConfig);
     this.setupEventHandlers();
   }
