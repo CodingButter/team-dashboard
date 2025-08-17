@@ -1,6 +1,6 @@
 /**
- * WebSocket Message Handler
- * Routes and processes incoming WebSocket messages
+ * WebSocket Message Handler with Enhanced Validation Pipeline
+ * Routes and processes incoming WebSocket messages with comprehensive validation
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +19,7 @@ import {
 } from '@team-dashboard/types';
 import { ClientConnection } from './connection';
 import { AgentManager } from './agent-manager';
+import { defaultMessageValidator, ValidationContext } from '../validation/message-validator';
 
 /**
  * Handles WebSocket message routing and processing
@@ -29,13 +30,52 @@ export class MessageHandler {
   ) {}
 
   /**
-   * Handle incoming WebSocket message
+   * Handle incoming WebSocket message with comprehensive validation
    */
   async handleMessage(client: ClientConnection, data: Buffer): Promise<void> {
+    const startTime = performance.now();
+    
     try {
-      const message = JSON.parse(data.toString()) as WSMessage;
+      // Create validation context
+      const validationContext: ValidationContext = {
+        clientId: client.id,
+        remoteAddress: client.remoteAddress || 'unknown',
+        userAgent: client.userAgent,
+        timestamp: Date.now()
+      };
+
+      // Step 1: Comprehensive validation pipeline
+      const validationResult = await defaultMessageValidator.validateMessage(data, validationContext);
       
-      console.log(`[WS] Message from ${client.id}: ${message.type}`);
+      // Handle validation failures
+      if (!validationResult.success) {
+        console.warn(`[WS] Validation failed for client ${client.id}:`, validationResult.errors);
+        
+        if (validationResult.rateLimited) {
+          this.sendError(client, ErrorCode.RATE_LIMIT, 'Rate limit exceeded');
+          return;
+        }
+        
+        if (validationResult.payloadTooLarge) {
+          this.sendError(client, ErrorCode.PAYLOAD_TOO_LARGE, 'Message too large');
+          return;
+        }
+        
+        if (validationResult.securityViolation) {
+          console.error(`[WS] Security violation from client ${client.id}:`, validationResult.errors);
+          this.sendError(client, ErrorCode.SECURITY_VIOLATION, 'Security violation detected');
+          client.ws.close(1008, 'Security violation');
+          return;
+        }
+        
+        this.sendError(client, ErrorCode.INVALID_MESSAGE, 'Invalid message format');
+        return;
+      }
+
+      // Use sanitized message if available, otherwise use validated data
+      const message = (validationResult.sanitized || validationResult.data!) as WSMessage;
+      
+      console.log(`[WS] Validated message from ${client.id}: ${message.type} (${validationResult.processingTime?.toFixed(2)}ms)`);
       
       // Handle authentication first
       if (isAuthMessage(message)) {
@@ -54,6 +94,12 @@ export class MessageHandler {
       
       // Send acknowledgment
       this.sendAck(client, message.id, true);
+      
+      // Log performance metrics
+      const totalTime = performance.now() - startTime;
+      if (totalTime > 10) { // Log slow processing
+        console.warn(`[WS] Slow message processing: ${totalTime.toFixed(2)}ms for ${message.type}`);
+      }
       
     } catch (error) {
       console.error('[WS] Message handling error:', error);
