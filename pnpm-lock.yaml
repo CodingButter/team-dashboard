@@ -77,6 +77,13 @@ importers:
         version: 3.2.4(@types/node@20.19.11)(@vitest/ui@3.2.4)(happy-dom@18.0.1)(jsdom@26.1.0)
 
   apps/chrome-extension:
+    dependencies:
+      socket.io-client:
+        specifier: ^4.7.4
+        version: 4.8.1
+      ws:
+        specifier: ^8.16.0
+        version: 8.18.3
     devDependencies:
       '@babel/core':
         specifier: ^7.23.6
