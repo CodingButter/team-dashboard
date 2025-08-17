@@ -39,9 +39,6 @@ export type LifecycleEventType =
   | 'agent:crashed'
   | 'agent:error'
   | 'agent:terminated'
-  | 'agent:ready'
-  | 'agent:spawned'
-  | 'agent:exited'
   | 'agent:restart_attempt'
   | 'agent:restart_success'
   | 'agent:restart_failed'
@@ -205,9 +202,9 @@ export class AgentLifecycleEventLogger extends EventEmitter {
       'error': 'agent:error',
       'crashed': 'agent:crashed',
       'terminated': 'agent:terminated',
-      'ready': 'agent:ready',
-      'spawned': 'agent:spawned',
-      'exited': 'agent:exited'
+      'ready': 'agent:started',
+      'spawned': 'agent:starting',
+      'exited': 'agent:stopped'
     };
 
     return statusMap[status] || 'agent:error';

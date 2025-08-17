@@ -8,7 +8,7 @@ import {
   AgentProcess, 
   HealthCheckConfig, 
   AgentHealthStatus, 
-  HealthCheck
+  HealthCheck,
 } from '@team-dashboard/types';
 
 export interface HealthMetrics {
@@ -272,7 +272,7 @@ export class AgentHealthMonitor extends EventEmitter {
         type: 'ping',
         success: false,
         duration: Date.now() - startTime,
-        details: { error: (error as Error).message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       };
     }
   }
@@ -321,7 +321,7 @@ export class AgentHealthMonitor extends EventEmitter {
         type: 'resource',
         success: false,
         duration: Date.now() - startTime,
-        details: { error: (error as Error).message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       };
     }
   }
@@ -377,7 +377,7 @@ export class AgentHealthMonitor extends EventEmitter {
           type: 'responsiveness',
           success: false,
           duration: Date.now() - startTime,
-          details: { error: (error as Error).message }
+          details: { error: error instanceof Error ? error.message : String(error) }
         });
       }
     });
