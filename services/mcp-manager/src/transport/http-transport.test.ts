@@ -78,8 +78,8 @@ describe('HttpTransport', () => {
       }
     };
 
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes('/sse')) {
+    mockFetch.mockImplementation((url: string | URL | RequestInfo) => {
+      if (url.toString().includes('/sse')) {
         return Promise.resolve(mockSSEResponse as any);
       }
       return Promise.resolve(mockResponse as any);
