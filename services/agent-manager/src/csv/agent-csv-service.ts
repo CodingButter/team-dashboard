@@ -151,6 +151,16 @@ export class AgentCSVService {
   async analyzeCSV(fileContent: string, options?: Partial<CSVProcessingOptions>): Promise<CSVAnalysisResult> {
     const opts = { ...this.defaultOptions, ...options };
     
+    // Validate file size
+    if (fileContent.length > opts.maxFileSize) {
+      throw new Error(`File size ${fileContent.length} bytes exceeds maximum allowed size ${opts.maxFileSize} bytes`);
+    }
+
+    // Validate non-empty content
+    if (!fileContent.trim()) {
+      throw new Error('CSV file is empty');
+    }
+    
     try {
       // Parse initial sample to detect structure
       const parseResult = Papa.parse(fileContent, {
@@ -235,10 +245,41 @@ export class AgentCSVService {
       const rows = parseResult.data as any[];
       const sampleData = rows.slice(0, 5);
 
+      // Check for missing required column mappings
+      const requiredColumns = ['name', 'model', 'workspace'];
+      const mappedFields = new Set(Object.values(columnMapping));
+      
+      for (const requiredColumn of requiredColumns) {
+        if (!mappedFields.has(requiredColumn as keyof CreateAgentRequest)) {
+          errors.push({
+            row: 1, // Header row issue
+            column: 'mapping',
+            value: requiredColumn,
+            message: `Required field '${requiredColumn}' is not mapped to any CSV column`,
+            severity: 'error'
+          });
+        }
+      }
+
       // Validate each row
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const mappedRow = this.mapCSVRow(row, columnMapping);
+        
+        // Check for missing required fields that were mapped but not found in CSV
+        const requiredColumns = ['name', 'model', 'workspace'];
+        for (const requiredColumn of requiredColumns) {
+          const mappedField = Object.entries(columnMapping).find(([csvCol, target]) => target === requiredColumn);
+          if (mappedField && (!mappedRow[requiredColumn] || mappedRow[requiredColumn].trim() === '')) {
+            errors.push({
+              row: i + 2,
+              column: mappedField[0],
+              value: mappedRow[requiredColumn] || '',
+              message: `Required field '${requiredColumn}' is missing or empty`,
+              severity: 'error'
+            });
+          }
+        }
         
         try {
           // Schema validation
@@ -332,28 +373,35 @@ export class AgentCSVService {
     const createdAgents: Agent[] = [];
 
     try {
-      const parseResult = Papa.parse(fileContent, {
+      // First parse to get total count
+      const initialParse = Papa.parse(fileContent, {
         header: true,
         skipEmptyLines: true,
-        encoding: opts.encoding,
-        chunk: (results, parser) => {
-          this.processCSVChunk(results.data, columnMapping, opts, {
-            onSuccess: (agent) => {
-              successful++;
-              createdAgents.push(agent);
-            },
-            onError: (error) => {
-              failed++;
-              errors.push(error);
-            },
-            onSkip: () => {
-              skipped++;
-            }
-          });
-          
+        encoding: opts.encoding
+      });
+
+      const totalRows = (initialParse.data as any[]).length;
+
+      // Process data synchronously for now (can be made async later)
+      await this.processCSVChunk(initialParse.data as any[], columnMapping, opts, {
+        onSuccess: (agent) => {
+          successful++;
+          createdAgents.push(agent);
           if (onProgress) {
-            const totalProcessed = successful + failed + skipped;
-            onProgress(totalProcessed, parseResult.data.length);
+            onProgress(successful + failed + skipped, totalRows);
+          }
+        },
+        onError: (error) => {
+          failed++;
+          errors.push(error);
+          if (onProgress) {
+            onProgress(successful + failed + skipped, totalRows);
+          }
+        },
+        onSkip: () => {
+          skipped++;
+          if (onProgress) {
+            onProgress(successful + failed + skipped, totalRows);
           }
         }
       });

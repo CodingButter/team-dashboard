@@ -1,0 +1,6 @@
+name,model,workspace,tags,memoryLimit,cpuCores,autoStart
+DataAnalyst,claude-3-sonnet,/workspace/data-analyst,"analysis,reports",4096,4,true
+CodeReviewer,gpt-4o,/workspace/code-reviewer,"review,quality",2048,2,false
+DocumentWriter,claude-3-haiku,/workspace/docs,"writing,documentation",1024,1,true
+TestAutomator,gpt-4o-mini,/workspace/testing,"automation,qa",2048,2,true
+SecurityAuditor,claude-3-opus,/workspace/security,"security,audit",8192,8,false

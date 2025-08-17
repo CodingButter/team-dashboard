@@ -1,0 +1,6 @@
+name,model,workspace,tags,memoryLimit,cpuCores,autoStart
+Agent001,claude-3-sonnet,/workspace/agent001,batch1,2048,2,true
+Agent002,gpt-4o,/workspace/agent002,batch1,2048,2,false
+Agent003,claude-3-haiku,/workspace/agent003,batch1,1024,1,true
+Agent004,gpt-4o-mini,/workspace/agent004,batch1,1024,1,false
+Agent005,claude-3-opus,/workspace/agent005,batch1,4096,4,true
