@@ -16,10 +16,8 @@ export interface DatabaseConfig {
 
 export class DatabaseConnection {
   private pool: Pool;
-  private config: DatabaseConfig;
 
   constructor(config: DatabaseConfig) {
-    this.config = config;
     
     const poolConfig: PoolConfig = {
       host: config.host,

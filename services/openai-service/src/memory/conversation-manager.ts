@@ -214,7 +214,7 @@ export class ConversationManager {
         const data = await this.redis.get(key);
         if (data) {
           const conversation: ConversationMemory = JSON.parse(data);
-          if (conversation.updatedAt < cutoffTime) {
+          if (new Date(conversation.updatedAt).getTime() < cutoffTime) {
             await this.redis.del(key);
             deletedCount++;
           }

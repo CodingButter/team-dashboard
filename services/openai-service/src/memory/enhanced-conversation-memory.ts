@@ -30,15 +30,20 @@ export interface EnhancedConversationMemoryConfig {
   };
 }
 
-export interface ConversationMessage extends ChatCompletionMessageParam {
+export interface ConversationMessage {
   id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool' | 'function' | 'developer';
+  content: string | any[] | null;
   tokenCount: number;
   relevanceScore: number;
   createdAt: Date;
   embedding?: number[];
+  tool_call_id?: string;
+  tool_calls?: any[];
+  name?: string;
 }
 
-export interface EnhancedConversationMemory extends ConversationMemory {
+export interface EnhancedConversationMemory extends Omit<ConversationMemory, 'messages'> {
   id: string;
   parentConversationId?: string;
   messages: ConversationMessage[];
@@ -53,6 +58,25 @@ export interface ConversationBranch {
   branchPointMessageId?: string;
   branchReason?: string;
   createdAt: Date;
+}
+
+// Helper function to convert ConversationMessage to ChatCompletionMessageParam
+function toOpenAIMessage(message: ConversationMessage): ChatCompletionMessageParam {
+  const base: any = {
+    role: message.role,
+    content: message.content,
+  };
+  
+  if (message.tool_call_id) base.tool_call_id = message.tool_call_id;
+  if (message.tool_calls) base.tool_calls = message.tool_calls;
+  if (message.name) base.name = message.name;
+  
+  return base;
+}
+
+// Helper function to convert ConversationMessage[] to ChatCompletionMessageParam[]
+function toOpenAIMessages(messages: ConversationMessage[]): ChatCompletionMessageParam[] {
+  return messages.map(toOpenAIMessage);
 }
 
 export class EnhancedConversationManager {
@@ -296,19 +320,23 @@ export class EnhancedConversationManager {
 
     const enhancedMessage: ConversationMessage = {
       id: crypto.randomUUID(),
-      ...message,
+      role: message.role as 'user' | 'assistant' | 'system' | 'tool' | 'function' | 'developer',
+      content: message.content as string | any[] | null,
       tokenCount: countMessageTokens([message], model as any),
       relevanceScore: 0.5, // Will be calculated based on context
       createdAt: new Date(),
+      ...(('tool_call_id' in message) && { tool_call_id: message.tool_call_id }),
+      ...(('tool_calls' in message) && { tool_calls: message.tool_calls }),
+      ...(('name' in message) && { name: message.name }),
     };
 
     conversation.messages.push(enhancedMessage);
-    conversation.totalTokens = countMessageTokens(conversation.messages, model as any);
+    conversation.totalTokens = countMessageTokens(toOpenAIMessages(conversation.messages), model as any);
     conversation.updatedAt = new Date();
 
     // Apply smart pruning if needed
     conversation.messages = await this.smartPrune(conversation.messages, model, relevanceContext);
-    conversation.totalTokens = countMessageTokens(conversation.messages, model as any);
+    conversation.totalTokens = countMessageTokens(toOpenAIMessages(conversation.messages), model as any);
 
     // Update cache and persist
     this.memoryCache.set(sessionId, conversation);
@@ -324,7 +352,7 @@ export class EnhancedConversationManager {
     relevanceContext?: string
   ): Promise<ConversationMessage[]> {
     if (messages.length <= this.config.conversation.maxMessages &&
-        countMessageTokens(messages, model as any) <= this.config.conversation.maxTokens) {
+        countMessageTokens(toOpenAIMessages(messages), model as any) <= this.config.conversation.maxTokens) {
       return messages;
     }
 
@@ -346,7 +374,7 @@ export class EnhancedConversationManager {
 
     // Keep messages above threshold and within limits
     let prunedMessages: ConversationMessage[] = [];
-    let currentTokens = countMessageTokens(systemMessages, model as any);
+    let currentTokens = countMessageTokens(toOpenAIMessages(systemMessages), model as any);
     const maxConversationMessages = this.config.conversation.maxMessages - systemMessages.length;
 
     for (const message of conversationMessages) {
@@ -426,7 +454,7 @@ export class EnhancedConversationManager {
         ...msg,
         id: crypto.randomUUID(), // New IDs for copied messages
       })),
-      totalTokens: countMessageTokens(messagesToCopy, 'gpt-4o'),
+      totalTokens: countMessageTokens(toOpenAIMessages(messagesToCopy), 'gpt-4o'),
       totalCost: 0, // Reset cost for fork
       createdAt: new Date(),
       updatedAt: new Date(),
