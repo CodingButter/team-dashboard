@@ -79,7 +79,7 @@ describe('HttpTransport', () => {
     };
 
     mockFetch.mockImplementation((url: URL | RequestInfo) => {
-      if (url.includes('/sse')) {
+      if (url.toString().includes('/sse')) {
         return Promise.resolve(mockSSEResponse as any);
       }
       return Promise.resolve(mockResponse as any);
@@ -345,7 +345,7 @@ describe('HttpTransport', () => {
   describe('Force Reconnection', () => {
     it('should force reconnection when requested', async () => {
       await transport.connect();
-      // const initialStats = transport.getConnectionStats(); // Removed unused variable
+      // const initialStats = transport.getConnectionStats();
       
       await transport.forceReconnect();
       
