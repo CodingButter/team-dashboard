@@ -17,6 +17,7 @@
     "@team-dashboard/utils": "workspace:*",
     "@types/node-cron": "^3.0.11",
     "@xterm/addon-fit": "^0.10.0",
+    "lucide-react": "^0.344.0",
     "monaco-editor": "^0.52.2",
     "next": "^14.1.0",
     "openai": "^5.12.2",
@@ -28,6 +29,7 @@
     "xterm": "^5.3.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.6",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
@@ -36,7 +38,6 @@
     "eslint-config-next": "^14.1.0",
     "postcss": "^8.4.33",
     "tailwindcss": "^4.0.6",
-    "@tailwindcss/postcss": "^4.0.6",
     "typescript": "^5.9.2"
   }
 }
