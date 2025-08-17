@@ -78,8 +78,9 @@ describe('HttpTransport', () => {
       }
     };
 
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes('/sse')) {
+    mockFetch.mockImplementation((url: any, _init?: any) => {
+      const urlString = typeof url === 'string' ? url : url.toString();
+      if (urlString.includes('/sse')) {
         return Promise.resolve(mockSSEResponse as any);
       }
       return Promise.resolve(mockResponse as any);
@@ -196,7 +197,7 @@ describe('HttpTransport', () => {
 
     it('should timeout requests', async () => {
       // Mock a slow response
-      mockFetch.mockImplementation(() => new Promise(resolve => {
+      mockFetch.mockImplementation(() => new Promise<any>(resolve => {
         setTimeout(() => resolve(mockResponse as any), 10000);
       }));
       
@@ -311,7 +312,7 @@ describe('HttpTransport', () => {
   describe('Health Checks', () => {
     it('should perform health checks successfully', async () => {
       const healthResponse = { ...mockResponse };
-      mockFetch.mockResolvedValue(healthResponse as any);
+      mockFetch.mockResolvedValueOnce(healthResponse as any);
       
       const result = await transport.healthCheck();
       
@@ -345,7 +346,7 @@ describe('HttpTransport', () => {
   describe('Force Reconnection', () => {
     it('should force reconnection when requested', async () => {
       await transport.connect();
-      const initialStats = transport.getConnectionStats();
+      // const initialStats = transport.getConnectionStats();
       
       await transport.forceReconnect();
       
