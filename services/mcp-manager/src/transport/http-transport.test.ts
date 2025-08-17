@@ -196,7 +196,7 @@ describe('HttpTransport', () => {
 
     it('should timeout requests', async () => {
       // Mock a slow response
-      mockFetch.mockImplementation(() => new Promise(resolve => {
+      mockFetch.mockImplementation(() => new Promise<Response>(resolve => {
         setTimeout(() => resolve(mockResponse as any), 10000);
       }));
       
@@ -346,6 +346,7 @@ describe('HttpTransport', () => {
     it('should force reconnection when requested', async () => {
       await transport.connect();
       const initialStats = transport.getConnectionStats();
+      expect(initialStats.connected).toBe(true);
       
       await transport.forceReconnect();
       

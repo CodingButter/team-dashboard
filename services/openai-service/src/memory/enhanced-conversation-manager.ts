@@ -297,7 +297,7 @@ export class EnhancedConversationManager {
 
     const conversation = await this.getConversation(sessionId) || {
       sessionId,
-      messages: [],
+      messages: [] as ChatCompletionMessageParam[],
       totalTokens: 0,
       totalCost: 0,
       createdAt: Date.now(),
