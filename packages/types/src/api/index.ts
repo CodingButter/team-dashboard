@@ -16,6 +16,7 @@ export * from './github';
 export * from './logs';
 export * from './alerts';
 export * from './csv';
+export * from './sso';
 
 // Import endpoint interfaces for consolidated API client
 import { AgentApiEndpoints } from './agents';
@@ -26,6 +27,7 @@ import { TaskApiEndpoints } from './tasks';
 import { LogsApiEndpoints } from './logs';
 import { AlertsApiEndpoints } from './alerts';
 import { McpApiEndpoints } from '../mcp/api';
+import { SSOApiEndpoints } from './sso';
 
 // Combined API client interface
 export interface ApiEndpoints extends
@@ -37,7 +39,8 @@ export interface ApiEndpoints extends
   TaskApiEndpoints,
   LogsApiEndpoints,
   AlertsApiEndpoints,
-  McpApiEndpoints {}
+  McpApiEndpoints,
+  SSOApiEndpoints {}
 
 // Export type-safe API client interface
 export type ApiClient = ApiEndpoints;
